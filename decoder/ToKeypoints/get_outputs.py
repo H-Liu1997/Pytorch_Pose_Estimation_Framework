@@ -114,8 +114,8 @@ if __name__ == "__main__":
         model.load_state_dict(state_dict)
         model = torch.nn.DataParallel(model,GPU_id).cuda() # wrong 1 time
         model.eval()
-        model.float()
-        model = model.cuda() # wrong 1 time
+        #model.float()
+        #model = model.cuda() # wrong 1 time
     print("loading model sucess")
 
     img_id, img_path, img_height, img_width = data_loader_val(img_val_path)
