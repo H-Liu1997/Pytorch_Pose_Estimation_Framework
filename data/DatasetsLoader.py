@@ -177,6 +177,8 @@ class ImageList(torch.utils.data.Dataset):
 
 
 def train_factory(args, preprocess, target_transforms):
+    '''test
+    '''
     train_data = CocoKeypoints(
         root=args['train_image_dir'],
         annFile=args['train_annotations'],

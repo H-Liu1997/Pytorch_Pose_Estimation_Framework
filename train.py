@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .data import (Datasetsloader,ImgPreprocessing)
+from .data import (DatasetsLoader,ImgPreprocessing)
 from .network.openpose import (CMUnet_loss,CMUnet)
 from .encoder.OPencoder import Get_OP_GT 
 from . import evaluate 
@@ -66,8 +66,10 @@ def train_val_one_epoch(epoch,img_input,model,gt_img,optimizer,writer):
 
     return accuracy_val, loss_train, loss_val
 
+def train():
+def val():
 def optimizer_settings(freeze_or_not,model):
-    ''' choose different optimizer method here
+    ''' choose different optimizer method here 
         default is SGD and don't use nesv
     '''
     if freeze_or_not:
@@ -99,7 +101,7 @@ if __name__ == "__main__":
     # data portion
     pre_function = ImgPreprocessing(config['imgpreprocessing'])
     gt_function = Get_OP_GT(config['encoding'])
-    train_img, val_img = Datasetsloader.Train_factory(config['dataloader'],pre_function,gt_function)
+    train_img, val_img = DatasetsLoader.train_factory(config['dataloader'],pre_function,gt_function)
 
     # network portion
     model = CMUnet()
@@ -128,10 +130,10 @@ if __name__ == "__main__":
             # save to tensorboard
             writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                 'val loss': loss_val}, epoch)
-            writer.add_scalar('accuracy', 'mAP': accuracy_val, epoch)
-            ''' val is best val_loss weights
-                save train is for continue training
-            '''
+            writer.add_scalar('accuracy', accuracy_val, epoch)
+
+            # val is best val_loss weights
+            # save train is for continue training
             if val_loss_min > loss_val:
                 val_loss_min = min(val_loss_min,loss_val)
                 torch.save(model.state_dict(),config['weight']['val'])
@@ -148,7 +150,7 @@ if __name__ == "__main__":
 
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                              'val loss': loss_val}, epoch)
-        writer.add_scalar('accuracy', 'mAP': accuracy_val, epoch)
+        writer.add_scalar('accuracy', accuracy_val, epoch)
 
         lr_scheduler.step(loss_val)
         if val_loss_min > loss_val:
