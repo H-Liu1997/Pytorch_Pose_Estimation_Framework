@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .data import (DataLoader,ImgPreprocessing)
+from .data import (Datasetsloader,ImgPreprocessing)
 from .network.openpose import (CMUnet_loss,CMUnet)
 from .encoder.OPencoder import Get_OP_GT 
 from . import evaluate 
@@ -54,7 +54,7 @@ def train_val_one_epoch(epoch,img_input,model,gt_img,optimizer,writer):
 
 
     model.eval()
-    for mini_batch in range(val):
+    for mini_batch, (img, heatmap_target, heat_mask, paf_target, paf_mask) in enumerate(img_input):
         output = model()
         loss = CMUnet_loss(output,gt_img)
         undatemodel(loss)
@@ -66,7 +66,7 @@ def train_val_one_epoch(epoch,img_input,model,gt_img,optimizer,writer):
 
     return accuracy_val, loss_train, loss_val
 
-def train_settings(freeze_or_not,model):
+def optimizer_settings(freeze_or_not,model):
     ''' choose different optimizer method here
         default is SGD and don't use nesv
     '''
@@ -95,16 +95,11 @@ if __name__ == "__main__":
     config = ConfigParser()
     config.read("OP.config")
     print("Reading config file success")
-
+    
     # data portion
-    train_img = DataLoader(config['dataloader_train'])
-    print("train dataset len: {}".format(len(train_img.dataset)))
-
-    val_img = DataLoader(config['dataloader_val'])
-    print("val dataset len: {}".format(len(val_img.dataset)))
-
-    input_img = ImgPreprocessing(config['imgpreprocessing'],input_img)
-    gt_img = Get_OP_GT(config['encoding'],input_img)
+    pre_function = ImgPreprocessing(config['imgpreprocessing'])
+    gt_function = Get_OP_GT(config['encoding'])
+    train_img, val_img = Datasetsloader.Train_factory(config['dataloader'],pre_function,gt_function)
 
     # network portion
     model = CMUnet()
@@ -122,26 +117,29 @@ if __name__ == "__main__":
     # start training
     val_loss_min = np.inf
     writer = SummaryWriter(config['log']['path'])
-
-    print("start freeze some weight training for epoch 0-{}".format(config['train']['freeze'])) 
-    optimizer = train_settings(True,model)
-    for epoch in range(config['train']['freeze']):
-        accuracy_val,loss_train,loss_val = train_val_one_epoch(epoch,input_img,model,gt_img,
-                                                        optimizer)
-        # save to tensorboard
-        writer.add_scalars('train_val_loss', {'train loss': loss_train,
-                                             'val loss': loss_val}, epoch)
-        writer.add_scalar('accuracy', 'mAP': accuracy_val, epoch)
-        ''' val is best val_loss weights
-            save train is for continue training
-        '''
-        if val_loss_min > loss_val:
-            val_loss_min = min(val_loss_min,loss_val)
-            torch.save(model.state_dict(),config['weight']['val'])
-        torch.save(model.state_dict(),config['weight']['train'])
+    
+    
+    if config['train']['freeze'] != 0:
+        print("start freeze some weight training for epoch 0-{}".format(config['train']['freeze'])) 
+        optimizer = optimizer_settings(True,model)
+        for epoch in range(config['train']['freeze']):
+            accuracy_val,loss_train,loss_val = train_val_one_epoch(epoch,input_img,model,gt_img,
+                                                            optimizer)
+            # save to tensorboard
+            writer.add_scalars('train_val_loss', {'train loss': loss_train,
+                                                'val loss': loss_val}, epoch)
+            writer.add_scalar('accuracy', 'mAP': accuracy_val, epoch)
+            ''' val is best val_loss weights
+                save train is for continue training
+            '''
+            if val_loss_min > loss_val:
+                val_loss_min = min(val_loss_min,loss_val)
+                torch.save(model.state_dict(),config['weight']['val'])
+            torch.save(model.state_dict(),config['weight']['train'])
+    
 
     print("start normal training") 
-    optimizer = train_settings(False,model)
+    optimizer = optimizer_settings(False,model)
     lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, 
                                   verbose=True, threshold=0.0001, threshold_mode='rel',
                                   cooldown=3, min_lr=0, eps=1e-08)

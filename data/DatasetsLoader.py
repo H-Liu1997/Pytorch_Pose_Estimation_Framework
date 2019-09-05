@@ -1,17 +1,17 @@
-'''this file will return train val and pretrain loader'''
+# The DataLoader based on 'openpifpaf' 
+# Thanks for their great work!
+# Remove pretraining, Remove logging
+
 import copy
-import logging
+#import logging
 import os
 import torch.utils.data
 from PIL import Image
 
-from .. import transforms, utils
+from pycocotools.coco import COCO
 
-
-ANNOTATIONS_TRAIN = 'data-mscoco/annotations/person_keypoints_train2017.json'
-ANNOTATIONS_VAL = 'data-mscoco/annotations/person_keypoints_val2017.json'
-IMAGE_DIR_TRAIN = 'data-mscoco/images/train2017/'
-IMAGE_DIR_VAL = 'data-mscoco/images/val2017/'
+#utils.mask_valid_area(image, valid_area)
+from . import transforms, utils
 
 
 def collate_images_anns_meta(batch):
@@ -30,11 +30,9 @@ def collate_images_targets_meta(batch):
 
 class CocoKeypoints(torch.utils.data.Dataset):
     """`MS Coco Detection <http://mscoco.org/dataset/#detections-challenge2016>`_ Dataset.
-
     Based on `torchvision.dataset.CocoDetection`.
-
     Caches preprocessing.
-
+    Based on 'openpifpaf'
     Args:
         root (string): Root directory where images are downloaded to.
         annFile (string): Path to json annotation file.
@@ -46,7 +44,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
 
     def __init__(self, root, annFile, *, target_transforms=None,
                  n_images=None, preprocess=None, all_images=False, all_persons=False):
-        from pycocotools.coco import COCO
+        
         self.root = root
         self.coco = COCO(annFile)
 
@@ -65,7 +63,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
         self.preprocess = preprocess or transforms.EVAL_TRANSFORM
         self.target_transforms = target_transforms
 
-        self.log = logging.getLogger(self.__class__.__name__)
+        #self.log = logging.getLogger(self.__class__.__name__)
 
     def filter_for_keypoint_annotations(self):
         print('filter for keypoint annotations ...')
@@ -97,7 +95,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
         anns = copy.deepcopy(anns)
 
         image_info = self.coco.loadImgs(image_id)[0]
-        self.log.debug(image_info)
+        #self.log.debug(image_info)
         with open(os.path.join(self.root, image_info['file_name']), 'rb') as f:
             image = Image.open(f).convert('RGB')
 
@@ -120,7 +118,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
         valid_area = meta['valid_area']
         utils.mask_valid_area(image, valid_area)
 
-        self.log.debug(meta)
+        #self.log.debug(meta)
 
         # transform targets
         if self.target_transforms is not None:
@@ -131,6 +129,27 @@ class CocoKeypoints(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.ids)
+
+
+class PilImageList(torch.utils.data.Dataset):
+    def __init__(self, images, preprocess=None):
+        self.images = images
+        self.preprocess = preprocess or transforms.EVAL_TRANSFORM
+
+    def __getitem__(self, index):
+        image = self.images[index].copy().convert('RGB')
+
+        anns = []
+        image, anns, meta = self.preprocess(image, anns, None)
+        meta.update({
+            'dataset_index': index,
+            'file_name': 'pilimage{}'.format(index),
+        })
+
+        return image, anns, meta
+
+    def __len__(self):
+        return len(self.images)
 
 
 class ImageList(torch.utils.data.Dataset):
@@ -156,91 +175,51 @@ class ImageList(torch.utils.data.Dataset):
         return len(self.image_paths)
 
 
-class PilImageList(torch.utils.data.Dataset):
-    def __init__(self, images, preprocess=None):
-        self.images = images
-        self.preprocess = preprocess or transforms.EVAL_TRANSFORM
-
-    def __getitem__(self, index):
-        image = self.images[index].copy().convert('RGB')
-
-        anns = []
-        image, anns, meta = self.preprocess(image, anns, None)
-        meta.update({
-            'dataset_index': index,
-            'file_name': 'pilimage{}'.format(index),
-        })
-
-        return image, anns, meta
-
-    def __len__(self):
-        return len(self.images)
-
-
-def train_cli(parser):
-    group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--train-annotations', default=ANNOTATIONS_TRAIN)
-    group.add_argument('--train-image-dir', default=IMAGE_DIR_TRAIN)
-    group.add_argument('--val-annotations', default=ANNOTATIONS_VAL)
-    group.add_argument('--val-image-dir', default=IMAGE_DIR_VAL)
-    group.add_argument('--pre-n-images', default=8000, type=int,
-                       help='number of images to sampe for pretraining')
-    group.add_argument('--n-images', default=None, type=int,
-                       help='number of images to sample')
-    group.add_argument('--duplicate-data', default=None, type=int,
-                       help='duplicate data')
-    group.add_argument('--pre-duplicate-data', default=None, type=int,
-                       help='duplicate pre data in preprocessing')
-    group.add_argument('--loader-workers', default=2, type=int,
-                       help='number of workers for data loading')
-    group.add_argument('--batch-size', default=8, type=int,
-                       help='batch size')
-
 
 def train_factory(args, preprocess, target_transforms):
     train_data = CocoKeypoints(
-        root=args.train_image_dir,
-        annFile=args.train_annotations,
+        root=args['train_image_dir'],
+        annFile=args['train_annotations'],
         preprocess=preprocess,
         target_transforms=target_transforms,
-        n_images=args.n_images,
+        n_images=args['n_images'],
     )
-    if args.duplicate_data:
+    if args['duplicate_data']:
         train_data = torch.utils.data.ConcatDataset(
-            [train_data for _ in range(args.duplicate_data)])
+            [train_data for _ in range(args['duplicate_data'])])
     train_loader = torch.utils.data.DataLoader(
-        train_data, batch_size=args.batch_size, shuffle=not args.debug,
-        pin_memory=args.pin_memory, num_workers=args.loader_workers, drop_last=True,
+        train_data, batch_size=args['batch_size'], shuffle=not args['debug'],
+        pin_memory=args['pin_memory'], num_workers=args['loader_workers'], drop_last=True,
         collate_fn=collate_images_targets_meta)
 
     val_data = CocoKeypoints(
-        root=args.val_image_dir,
-        annFile=args.val_annotations,
+        root=args['val_image_dir'],
+        annFile=args['val_annotations'],
         preprocess=preprocess,
         target_transforms=target_transforms,
-        n_images=args.n_images,
+        n_images=args['n_images'],
     )
-    if args.duplicate_data:
+    if args['duplicate_data']:
         val_data = torch.utils.data.ConcatDataset(
-            [val_data for _ in range(args.duplicate_data)])
+            [val_data for _ in range(args['duplicate_data'])])
     val_loader = torch.utils.data.DataLoader(
-        val_data, batch_size=args.batch_size, shuffle=False,
-        pin_memory=args.pin_memory, num_workers=args.loader_workers, drop_last=True,
+        val_data, batch_size=args['batch_size'], shuffle=False,
+        pin_memory=args['pin_memory'], num_workers=args['loader_workers'], drop_last=True,
         collate_fn=collate_images_targets_meta)
 
-    pre_train_data = CocoKeypoints(
-        root=args.train_image_dir,
-        annFile=args.train_annotations,
-        preprocess=preprocess,
-        target_transforms=target_transforms,
-        n_images=args.pre_n_images,
-    )
-    if args.pre_duplicate_data:
-        pre_train_data = torch.utils.data.ConcatDataset(
-            [pre_train_data for _ in range(args.pre_duplicate_data)])
-    pre_train_loader = torch.utils.data.DataLoader(
-        pre_train_data, batch_size=args.batch_size, shuffle=True,
-        pin_memory=args.pin_memory, num_workers=args.loader_workers, drop_last=True,
-        collate_fn=collate_images_targets_meta)
+    # pre_train_data = CocoKeypoints(
+    #     root=args['train_image_dir,
+    #     annFile=args['train_annotations,
+    #     preprocess=preprocess,
+    #     target_transforms=target_transforms,
+    #     n_images=args['pre_n_images,
+    # )
+    # if args['pre_duplicate_data:
+    #     pre_train_data = torch.utils.data.ConcatDataset(
+    #         [pre_train_data for _ in range(args['pre_duplicate_data)])
+    # pre_train_loader = torch.utils.data.DataLoader(
+    #     pre_train_data, batch_size=args['batch_size, shuffle=True,
+    #     pin_memory=args['pin_memory, num_workers=args['loader_workers, drop_last=True,
+    #     collate_fn=collate_images_targets_meta)
 
-    return train_loader, val_loader, pre_train_loader
+    return train_loader, val_loader #, pre_train_loader

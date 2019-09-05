@@ -1,3 +1,4 @@
+# COCO data format
 
 HFLIP = {
     'left_eye': 'right_eye',
