@@ -157,7 +157,7 @@ if __name__ == "__main__":
     print("Reading config file success")
     
     # data portion
-    train_img, val_img = MainLoader.train_factory(config['dataloader'],config['imgpreprocessing'],config['encoding'])
+    train_img, val_img = MainLoader.train_factory(config['dataloader'],config['preprocess'],config['target_transforms'])
 
     # network portion
     model = CMUnet()

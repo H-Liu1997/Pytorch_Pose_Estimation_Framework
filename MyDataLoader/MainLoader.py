@@ -12,6 +12,7 @@ from pycocotools.coco import COCO
 
 #utils.mask_valid_area(image, valid_area)
 from . import transforms, utils
+from . import encoder
 
 
 def collate_images_anns_meta(batch):
@@ -176,9 +177,30 @@ class ImageList(torch.utils.data.Dataset):
 
 
 
-def train_factory(args, preprocess, target_transforms):
+def train_factory(args, pre_config, target_config):
     '''test
     '''
+    target_transforms = encoder.factory(target_config, net_cpu.io_scales())
+
+    if pre_config:
+        preprocess = transforms.Compose([
+            transforms.NormalizeAnnotations(),
+            transforms.RandomApply(transforms.RotateBy90(), 0.01),
+            transforms.RandomApply(transforms.HFlip(), 0.5),
+            transforms.RescaleRelative(),
+            transforms.Crop(args.square_edge),
+            transforms.CenterPad(args.square_edge),
+            transforms.TRAIN_TRANSFORM,
+        ])
+    else:
+        preprocess = transforms.Compose([
+            transforms.NormalizeAnnotations(),
+            transforms.RescaleAbsolute(args.square_edge),
+            transforms.CenterPad(args.square_edge),
+            transforms.EVAL_TRANSFORM,
+        ])
+
+
     train_data = CocoKeypoints(
         root=args['train_image_dir'],
         annFile=args['train_annotations'],
