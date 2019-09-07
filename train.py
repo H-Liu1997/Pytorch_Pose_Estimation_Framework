@@ -7,11 +7,12 @@ from collections import OrderedDict
 
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import torch.utils.model_zoo as model_zoo
 import numpy as np
 from tensorboardX import SummaryWriter
 
 from .MyDataLoader import MainLoader
-from .network.openpose import (CMUnet_loss,CMUnet) 
+from .network.openpose import CMUnet, CMUnet_loss
 from .EvalTools import decoder, CalScore
 
  
@@ -151,6 +152,7 @@ def optimizer_settings(freeze_or_not,model):
                                 nesterov = config['train']['nesterov'])         
     return optimizer
 
+
 if __name__ == "__main__":
     config = ConfigParser()
     config.read("OP.config")
@@ -160,12 +162,19 @@ if __name__ == "__main__":
     train_img, val_img = MainLoader.train_factory(config['dataloader'],config['preprocess'],config['target_transforms'])
 
     # network portion
-    model = CMUnet()
+    model = CMUnet.CMUnetwork()
     try:
         state_dict = torch.load(config['weight']['load'])
         print("load old weight")
     except:
-        state_dict = torch.load_url()
+        state_dict = model_zoo.load_url(config['weight']['vgg19'], model_dir=config['weight']['load'])
+        vgg_keys = state_dict.keys()
+        weights_load = {}
+        for i in range(20):
+            weights_load[list(model.state_dict().keys())[i]
+                     ] = state_dict[list(vgg_keys)[i]]
+        state_dict = model.state_dict()
+        state_dict.update(weights_load)  
         print("load imgnet pretrain weight")
     # add some debug in future
     model.load_state_dict(state_dict)
