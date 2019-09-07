@@ -15,7 +15,10 @@ from .MyDataLoader import MainLoader
 from .network.openpose import CMUnet, CMUnet_loss
 from .EvalTools import decoder, CalScore
 
- 
+def Online_weight_control(loss_dict):
+    pass
+    return
+
 def train_one_epoch(img_input,model,optimizer,writer,epoch,loss_set):
     ''' Finish 1.train for one epoch
                2.print process, total loss, data time in terminal
@@ -23,6 +26,9 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,loss_set):
         Note   1.you can change the save frequency in config file
     '''
     loss_train = 0
+    loss_for_control = np.zeros(6,19+38)
+    weight_con = np.ones(1,19+38)
+    weight_con = weight_con.cuda()
     model.train()
     length = len(img_input)
     
@@ -35,20 +41,25 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,loss_set):
         mask = mask.cuda()
 
         _, saved_for_loss = model(img)
-        loss,_ = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set)
+        loss_final,loss = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set,weight_con)
+
+        for i in range(6):
+            for j in range(19+38):
+                loss_for_control[i][j] += loss['stage_{0}_{1}'.format(i,j)]
+
         optimizer.zero_grad()
-        loss['final'].backward()
+        loss_final.backward()
         optimizer.step()
-        loss_train += loss['final']
+        loss_train += loss_final
 
         if each_batch % config['print']['frequency'] == 0:
             #for tensorboard
-            print_to_terminal(epoch,each_batch,length,loss['final'],loss_train,data_time)
+            print_to_terminal(epoch,each_batch,length,loss_final,loss_train,data_time)
             writer.add_scalars()
             writer.add_hyper()
             writer.add_img()    
         begin = time.time()
-
+    weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
     return loss_train
 
