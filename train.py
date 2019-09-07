@@ -34,8 +34,8 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,loss_set):
         target = target.cuda()
         mask = mask.cuda()
 
-        output = model(img)
-        loss = CMUnet_loss.get_loss(output,target,mask,loss_set)
+        _, saved_for_loss = model(img)
+        loss,_ = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set)
         optimizer.zero_grad()
         loss['final'].backward()
         optimizer.step()
@@ -61,7 +61,7 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
 
-def val_one_epoch(img_input,model,epoch,val_type,decoder_set):
+def val_one_epoch(img_input,model,epoch,val_type,loss_set,decoder_set):
     ''' val_type: 0.only calculate val_loss
                   1.only calculate accuracy
                   2.both accuracy and val_loss
@@ -80,8 +80,8 @@ def val_one_epoch(img_input,model,epoch,val_type,decoder_set):
             target = target.cuda()
             mask = mask.cuda()
 
-            output = model(img)
-            loss = CMUnet_loss.get_loss(output,target,mask,None)
+            _, saved_for_loss = model(img)
+            loss = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set)
             loss_val += loss
             if each_batch % config['print']['frequency'] == 0:
                 print_to_terminal(epoch,each_batch,length,loss['final'],loss_val,data_time)
@@ -95,7 +95,7 @@ def val_one_epoch(img_input,model,epoch,val_type,decoder_set):
             target = target.cuda()
             mask = mask.cuda()
 
-            output = model(img)
+            output, saved_for_loss = model(img)
             json_file += decoder(output,decoder_set)
             
             if each_batch % config['print']['frequency'] == 0:
@@ -110,11 +110,11 @@ def val_one_epoch(img_input,model,epoch,val_type,decoder_set):
             target = target.cuda()
             mask = mask.cuda()
 
-            output = model(img)
+            output, saved_for_loss = model(img)
             json_file = decoder(output,decoder_set)
             
 
-            loss = CMUnet_loss.get_loss(output,target,mask,None)
+            loss = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set)
             loss_val += loss
             if each_batch % config['print']['frequency'] == 0:
                 print_to_terminal(epoch,each_batch,length,loss['final'],loss_val,data_time)
@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
         for epoch in range(config['train']['freeze']):
             loss_train = train_one_epoch(train_img,model,optimizer,writer,epoch,config['loss_settings'])
-            loss_val, accuracy_val = val_one_epoch(val_img,model,epoch,config['val']['type'],config['decoder'])
+            loss_val, accuracy_val = val_one_epoch(val_img,model,epoch,config['val']['type'],config['loss_settings'],config['decoder'])
             # save to tensorboard
             writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                   'val loss': loss_val}, epoch)
@@ -214,7 +214,7 @@ if __name__ == "__main__":
 
     for epoch in range(config['train']['freeze'],config['train']['epoch']):
         loss_train = train_one_epoch(train_img,model,optimizer,writer,epoch,config['loss_settings'])
-        loss_val, accuracy_val = val_one_epoch(val_img,model,epoch,config['val']['type'],config['decoder'])
+        loss_val, accuracy_val = val_one_epoch(val_img,model,epoch,config['val']['type'],config['loss_settings'],config['decoder'])
         # save to tensorboard
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                 'val loss': loss_val}, epoch)
