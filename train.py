@@ -11,7 +11,7 @@ import torch.utils.model_zoo as model_zoo
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .MyDataLoader import MainLoader
+from .datasets import mainloader
 from .network.openpose import CMUnet, CMUnet_loss
 from .EvalTools import decoder, CalScore
 
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     print("Reading config file success")
     
     # data portion
-    train_img, val_img = MainLoader.train_factory(config['dataloader'],config['preprocess'],config['target_transforms'])
+    train_img, val_img = mainloader.train_factory(type_,args)
 
     # network portion
     model = CMUnet.CMUnetwork()

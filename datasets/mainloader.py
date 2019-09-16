@@ -12,7 +12,7 @@ import torch
 from torch.utils.dataset import Dataloader,Dataset
 from pycocotools.coco import COCO
 
-from .encoder import augment,heatmap,paf,preprocess,utils,transforms
+from .encoder import heatmap,paf,utils,transforms
 
 # config part for dataloader
 def train_cli(parser):
