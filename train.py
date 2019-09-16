@@ -33,15 +33,14 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,loss_set):
     length = len(img_input)
     
     begin = time.time()
-    for each_batch, (img, target, mask) in enumerate(img_input):
+    for each_batch, (img, target) in enumerate(img_input):
         data_time = time.time() - begin
 
         img = img.cuda()
         target = target.cuda()
-        mask = mask.cuda()
-
+    
         _, saved_for_loss = model(img)
-        loss_final,loss = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set,weight_con)
+        loss_final,loss = CMUnet_loss.get_loss(saved_for_loss,target,loss_set,weight_con)
 
         for i in range(6):
             for j in range(19+38):
@@ -55,9 +54,9 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,loss_set):
         if each_batch % config['print']['frequency'] == 0:
             #for tensorboard
             print_to_terminal(epoch,each_batch,length,loss_final,loss_train,data_time)
-            writer.add_scalars()
-            writer.add_hyper()
-            writer.add_img()    
+            #writer.add_scalars()
+            #writer.add_hyper()
+            #writer.add_img()    
         begin = time.time()
     weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
@@ -85,14 +84,13 @@ def val_one_epoch(img_input,model,epoch,val_type,loss_set,decoder_set):
     begin = time.time()
 
     if val_type == 0:
-        for each_batch, (img, target, mask) in enumerate(img_input):
+        for each_batch, (img, target) in enumerate(img_input):
             data_time = time.time() - begin
             img = img.cuda()
             target = target.cuda()
-            mask = mask.cuda()
-
+    
             _, saved_for_loss = model(img)
-            loss = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set)
+            loss = CMUnet_loss.get_loss(saved_for_loss,target,loss_set)
             loss_val += loss
             if each_batch % config['print']['frequency'] == 0:
                 print_to_terminal(epoch,each_batch,length,loss['final'],loss_val,data_time)
@@ -100,7 +98,7 @@ def val_one_epoch(img_input,model,epoch,val_type,loss_set,decoder_set):
         loss_val /= len(img_input)
 
     elif val_type == 1:
-        for each_batch, (img, target, mask) in enumerate(img_input):
+        for each_batch, (img, target) in enumerate(img_input):
             data_time = time.time() - begin
             img = img.cuda()
             target = target.cuda()
@@ -115,7 +113,7 @@ def val_one_epoch(img_input,model,epoch,val_type,loss_set,decoder_set):
         accuracy = CalScore(json_file)
 
     else:
-        for each_batch, (img, target, mask) in enumerate(img_input):
+        for each_batch, (img, target) in enumerate(img_input):
             data_time = time.time() - begin
             img = img.cuda()
             target = target.cuda()
@@ -125,7 +123,7 @@ def val_one_epoch(img_input,model,epoch,val_type,loss_set,decoder_set):
             json_file = decoder(output,decoder_set)
             
 
-            loss = CMUnet_loss.get_loss(saved_for_loss,target,mask,loss_set)
+            loss = CMUnet_loss.get_loss(saved_for_loss,target,loss_set)
             loss_val += loss
             if each_batch % config['print']['frequency'] == 0:
                 print_to_terminal(epoch,each_batch,length,loss['final'],loss_val,data_time)
@@ -170,7 +168,9 @@ if __name__ == "__main__":
     print("Reading config file success")
     
     # data portion
-    train_img, val_img = mainloader.train_factory(type_,args)
+    args = mainloader.train_cli(args)
+    train_loader = mainloader.train_factory(type_='train',args)
+    val_loader = mainloader.train_factory(type_='val',args)
 
     # network portion
     model = CMUnet.CMUnetwork()
@@ -202,8 +202,8 @@ if __name__ == "__main__":
         optimizer = optimizer_settings(True,model)
 
         for epoch in range(config['train']['freeze']):
-            loss_train = train_one_epoch(train_img,model,optimizer,writer,epoch,config['loss_settings'])
-            loss_val, accuracy_val = val_one_epoch(val_img,model,epoch,config['val']['type'],config['loss_settings'],config['decoder'])
+            loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,config['loss_settings'])
+            loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,config['val']['type'],config['loss_settings'],config['decoder'])
             # save to tensorboard
             writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                   'val loss': loss_val}, epoch)
@@ -224,8 +224,8 @@ if __name__ == "__main__":
                                   cooldown=3, min_lr=0, eps=1e-08)
 
     for epoch in range(config['train']['freeze'],config['train']['epoch']):
-        loss_train = train_one_epoch(train_img,model,optimizer,writer,epoch,config['loss_settings'])
-        loss_val, accuracy_val = val_one_epoch(val_img,model,epoch,config['val']['type'],config['loss_settings'],config['decoder'])
+        loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,config['loss_settings'])
+        loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,config['val']['type'],config['loss_settings'],config['decoder'])
         # save to tensorboard
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                 'val loss': loss_val}, epoch)
