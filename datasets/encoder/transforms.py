@@ -1,4 +1,3 @@
-# openpifpaf's code
 """Transform input data.
 
 Images are resized with Pillow which has a different coordinate convention:
@@ -18,10 +17,52 @@ import math
 import numpy as np
 import PIL
 import scipy
+import random
+import cv2
 import torch
 import torchvision
-
+from functools import partial, reduce
 from .utils import horizontal_swap_coco
+
+
+def jpeg_compression_augmentation(im):
+    f = io.BytesIO()
+    im.save(f, 'jpeg', quality=50)
+    return PIL.Image.open(f)
+
+
+def blur_augmentation(im, max_sigma=5.0):
+    im_np = np.asarray(im)
+    sigma = max_sigma * float(torch.rand(1).item())
+    im_np = scipy.ndimage.filters.gaussian_filter(im_np, sigma=(sigma, sigma, 0))
+    return PIL.Image.fromarray(im_np)
+
+
+normalize = torchvision.transforms.Normalize(  # pylint: disable=invalid-name
+    mean=[0.485, 0.456, 0.406],
+    std=[0.229, 0.224, 0.225]
+)
+
+
+image_transform = torchvision.transforms.Compose([  # pylint: disable=invalid-name
+    torchvision.transforms.ToTensor(),
+    normalize,
+])
+
+
+image_transform_train = torchvision.transforms.Compose([  # pylint: disable=invalid-name
+    torchvision.transforms.ColorJitter(brightness=0.1,
+                                       contrast=0.1,
+                                       saturation=0.1,
+                                       hue=0.1),
+    torchvision.transforms.RandomApply([
+        # maybe not relevant for COCO, but good for other datasets:
+        torchvision.transforms.Lambda(jpeg_compression_augmentation),
+    ], p=0.1),
+    torchvision.transforms.RandomGrayscale(p=0.01),
+    torchvision.transforms.ToTensor(),
+    normalize,
+])
 
 
 class Preprocess(metaclass=ABCMeta):
@@ -49,26 +90,18 @@ class Preprocess(metaclass=ABCMeta):
         return keypoint_sets
 
 
-class ImageTransform(Preprocess):
-    def __init__(self, image_transform):
-        self.image_transform = image_transform
-
-    def __call__(self, image, anns, meta):
-        image = self.image_transform(image)
-        return image, anns, meta
-
-
-class NormalizeAnnotations(Preprocess):
+class Normalize(Preprocess):
     @staticmethod
     def normalize_annotations(anns):
         anns = copy.deepcopy(anns)
 
+        # convert as much data as possible to numpy arrays to avoid every float
+        # being turned into its own torch.Tensor()
         for ann in anns:
             ann['keypoints'] = np.asarray(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
             ann['bbox'] = np.asarray(ann['bbox'], dtype=np.float32)
             ann['bbox_original'] = np.copy(ann['bbox'])
-            if 'segementation' in ann:
-                del ann['segmentation']
+            del ann['segmentation']
 
         return anns
 
@@ -93,9 +126,13 @@ class Compose(Preprocess):
         self.preprocess_list = preprocess_list
 
     def __call__(self, image, anns, meta):
-        for p in self.preprocess_list:
-            image, anns, meta = p(image, anns, meta)
-
+    
+        augmentations = [partial(aug_meth) for aug_meth in self.preprocess_list]
+        image, anns, meta = reduce(
+            lambda md_i_mm, f: f(*md_i_mm),
+            augmentations,
+            (image, anns, meta)
+        )
         return image, anns, meta
 
 
@@ -361,45 +398,38 @@ class RandomApply(Preprocess):
         if float(torch.rand(1).item()) > self.probability:
             return image, anns, meta
         return self.transform(image, anns, meta)
-
-
-class RotateBy90(Preprocess):
-    def __init__(self, angle_perturbation=5.0):
+      
+          
+class RandomRotate(Preprocess):
+    def __init__(self, max_rotate_degree=40):
         super().__init__()
         self.log = logging.getLogger(self.__class__.__name__)
 
-        self.angle_perturbation = angle_perturbation
+        self.max_rotate_degree =  max_rotate_degree
 
     def __call__(self, image, anns, meta):
+
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
-
         w, h = image.size
-        rnd1 = float(torch.rand(1).item())
-        angle = int(rnd1 * 4.0) * 90.0
-        rnd2 = float(torch.rand(1).item())
-        angle += -self.angle_perturbation + 2.0 * self.angle_perturbation * rnd2
-        self.log.debug('rotation angle = %f', angle)
+        
+        dice = random.random()
+        degree = (dice - 0.5) * 2 * \
+            self.max_rotate_degree  # degree [-40,40]
 
-        # rotate image
-        im_np = np.asarray(image)
-        im_np = scipy.ndimage.rotate(im_np, angle=angle, cval=127, reshape=False)
-        image = PIL.Image.fromarray(im_np)
-        self.log.debug('rotated by = %f degrees', angle)
+        img_rot, R = self.rotate_bound(np.asarray(image), np.copy(degree), (128, 128, 128))
+        image = PIL.Image.fromarray(img_rot)
 
-        # rotate keypoints
-        cangle = math.cos(angle / 180.0 * math.pi)
-        sangle = math.sin(angle / 180.0 * math.pi)
-        for ann in anns:
-            xy = ann['keypoints'][:, :2]
-            x_old = xy[:, 0].copy() - w/2
-            y_old = xy[:, 1].copy() - h/2
-            xy[:, 0] = w/2 + cangle * x_old + sangle * y_old
-            xy[:, 1] = h/2 - sangle * x_old + cangle * y_old
-            ann['bbox'] = self.rotate_box(ann['bbox'], w, h, angle)
+        for j,ann in enumerate(anns):
+            for k in range(17):
+                xy = ann['keypoints'][k, :2]     
+                new_xy = self.rotatepoint(xy, R)
+                anns[j]['keypoints'][k, :2] = new_xy
+                
+            ann['bbox'] = self.rotate_box(ann['bbox'], R)
 
         self.log.debug('meta before: %s', meta)
-        meta['valid_area'] = self.rotate_box(meta['valid_area'], w, h, angle)
+        meta['valid_area'] = self.rotate_box(meta['valid_area'], R)
         self.log.debug('meta after: %s', meta)
 
         for ann in anns:
@@ -408,69 +438,66 @@ class RotateBy90(Preprocess):
         return image, anns, meta
 
     @staticmethod
-    def rotate_box(bbox, width, height, angle_degrees):
+    def rotatepoint(p, R):
+        point = np.zeros((3, 1))
+        point[0] = p[0]
+        point[1] = p[1]
+        point[2] = 1
+
+        new_point = R.dot(point)
+
+        p[0] = new_point[0]
+
+        p[1] = new_point[1]
+        return p
+    
+    # The correct way to rotation an image
+    # http://www.pyimagesearch.com/2017/01/02/rotate-images-correctly-with-opencv-and-python/
+   
+    def rotate_bound(self, image, angle, bordervalue):
+        # grab the dimensions of the image and then determine the
+        # center
+        (h, w) = image.shape[:2]
+        (cX, cY) = (w // 2, h // 2)
+
+        # grab the rotation matrix (applying the negative of the
+        # angle to rotate clockwise), then grab the sine and cosine
+        # (i.e., the rotation components of the matrix)
+        M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
+        cos = np.abs(M[0, 0])
+        sin = np.abs(M[0, 1])
+
+        # compute the new bounding dimensions of the image
+        nW = int((h * sin) + (w * cos))
+        nH = int((h * cos) + (w * sin))
+
+        # adjust the rotation matrix to take into account translation
+        M[0, 2] += (nW / 2) - cX
+        M[1, 2] += (nH / 2) - cY
+
+        # perform the actual rotation and return the image
+        return cv2.warpAffine(image, M, (nW, nH), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
+                              borderValue=bordervalue), M    
+        
+    def rotate_box(self, bbox, R):
         """Input bounding box is of the form x, y, width, height."""
-
-        cangle = math.cos(angle_degrees / 180.0 * math.pi)
-        sangle = math.sin(angle_degrees / 180.0 * math.pi)
-
         four_corners = np.array([
             [bbox[0], bbox[1]],
             [bbox[0] + bbox[2], bbox[1]],
             [bbox[0], bbox[1] + bbox[3]],
             [bbox[0] + bbox[2], bbox[1] + bbox[3]],
         ])
+        
+        new_four_corners = []
+        for i in range(4):
+            xy = self.rotatepoint(four_corners[i], R)
+            new_four_corners.append(xy)
+        
+        new_four_corners = np.array(new_four_corners)
 
-        x_old = four_corners[:, 0].copy() - width/2
-        y_old = four_corners[:, 1].copy() - height/2
-        four_corners[:, 0] = width/2 + cangle * x_old + sangle * y_old
-        four_corners[:, 1] = height/2 - sangle * x_old + cangle * y_old
+        x = np.min(new_four_corners[:, 0])
+        y = np.min(new_four_corners[:, 1])
+        xmax = np.max(new_four_corners[:, 0])
+        ymax = np.max(new_four_corners[:, 1])
 
-        x = np.min(four_corners[:, 0])
-        y = np.min(four_corners[:, 1])
-        xmax = np.max(four_corners[:, 0])
-        ymax = np.max(four_corners[:, 1])
-
-        return np.array([x, y, xmax - x, ymax - y])
-
-
-class JpegCompression(Preprocess):
-    def __init__(self, quality=50):
-        self.quality = quality
-
-    def __call__(self, image, anns, meta):
-        f = io.BytesIO()
-        image.save(f, 'jpeg', quality=self.quality)
-        return PIL.Image.open(f), anns, meta
-
-
-class Blur(Preprocess):
-    def __init__(self, max_sigma=5.0):
-        self.max_sigma = max_sigma
-
-    def __call__(self, image, anns, meta):
-        im_np = np.asarray(image)
-        sigma = self.max_sigma * float(torch.rand(1).item())
-        im_np = scipy.ndimage.filters.gaussian_filter(im_np, sigma=(sigma, sigma, 0))
-        return PIL.Image.fromarray(im_np), anns, meta
-
-
-EVAL_TRANSFORM = Compose([
-    NormalizeAnnotations(),
-    ImageTransform(torchvision.transforms.ToTensor()),
-    ImageTransform(
-        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]),
-    ),
-])
-
-
-TRAIN_TRANSFORM = Compose([
-    NormalizeAnnotations(),
-    ImageTransform(torchvision.transforms.ColorJitter(
-        brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)),
-    RandomApply(JpegCompression(), 0.1),  # maybe irrelevant for COCO, but good for others
-    # RandomApply(Blur(), 0.01),  # maybe irrelevant for COCO, but good for others
-    ImageTransform(torchvision.transforms.RandomGrayscale(p=0.01)),
-    EVAL_TRANSFORM,
-])
+        return np.array([x, y, xmax - x, ymax - y])        

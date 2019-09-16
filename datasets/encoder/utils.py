@@ -1,10 +1,8 @@
-# The basic tools coding by openpifpaf
-
 import functools
 import math
 import numpy as np
 
-from .DataFormat import COCO_KEYPOINTS, HFLIP
+from .coco import COCO_KEYPOINTS, HFLIP
 
 
 def horizontal_swap_coco(keypoints):
