@@ -27,6 +27,7 @@ def train_cli(parser):
                        help='number of workers for data loading')
     group.add_argument('--batch_size', default=32, type=int,
                        help='batch size')
+    
 
 
 class COCOKeypoints(Dataset):
@@ -243,7 +244,8 @@ def train_factory(type_,args):
                               preprocess=args.preprocess, n_images=args.n_images)
                   
         train_loader = Dataloader(data_, shuffle=True, batch_size=args.batch_size,
-                                 num_worker=args.loader_workers, drop_last=True)
+                                 num_worker=args.loader_workers,
+                                 pin_memory=True, drop_last=True)
         return train_loader
     else:
         data_ = COCOKeypoints(args.val_ann_dir,args.val_image_dir,
@@ -251,7 +253,8 @@ def train_factory(type_,args):
                               preprocess=args.preprocess)
 
         val_loader = Dataloader(data_, shuffle=False, batch_size=args.batch_size,
-                                 num_worker=args.loader_workers, drop_last=False)
+                                 num_worker=args.loader_workers, 
+                                 pin_memory=True, drop_last=False)
         return val_loader
     
 

@@ -5,20 +5,33 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 
-HEATMAP_NUM = 19
-PAF_NUM = 38
+
+def cli(parser):
+    group = parser.add_argument_group('network')
+    group.add_argument('--heatmap_num', default=19, type=int)
+    group.add_argument('--paf_num', default=38, type=int)
+    group.add_argument('--paf_stage', default=5, type=int)
+    group.add_argument('--weight_load_dir', default="xxx")
+    group.add_argument('--weight_save_train_dir', default="xxx")
+    group.add_argument('--weight_save_val_dir', default="xxx")
+    group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
+    group.add_argument('--lr', default=1., type=float)
+    group.add_argument('--weight_decay', default=0., type=float)
+    group.add_argument('--momentum', default=0.9, type=float)
+    group.add_argument('--nesterov', default=True, type=bool)
+    
 
 class CMUnetwork(nn.Module):
     ''' the newest cmu network'''
-    def __init__ (self):
+    def __init__ (self,args):
         # already finish the init_weight in each block
         self.state_0 = VGG_block()
-        self.state_1 = state_n_block(128, PAF_NUM)
-        self.state_2 = state_n_block(128+PAF_NUM,PAF_NUM)
-        self.state_3 = state_n_block(128+PAF_NUM,PAF_NUM)
-        self.state_4 = state_n_block(128+PAF_NUM,PAF_NUM)
-        self.state_5 = state_n_block(128+PAF_NUM,PAF_NUM)
-        self.state_6 = state_n_block(128+PAF_NUM,HEATMAP_NUM)
+        self.state_1 = state_n_block(128, args.paf_num)
+        self.state_2 = state_n_block(128+args.paf_num,args.paf_num)
+        self.state_3 = state_n_block(128+args.paf_num,args.paf_num)
+        self.state_4 = state_n_block(128+args.paf_num,args.paf_num)
+        self.state_5 = state_n_block(128+args.paf_num,args.paf_num)
+        self.state_6 = state_n_block(128+args.paf_num,args.heatmap_num)
 
     def forward(self,input_0):
 
