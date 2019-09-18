@@ -9,7 +9,7 @@ import os
 from PIL import Image
 import numpy as np
 import torch
-from torch.utils.dataset import Dataloader,Dataset
+from torch.utils.data import DataLoader,Dataset
 from pycocotools.coco import COCO
 
 from .encoder import heatmap,paf,utils,transforms
@@ -17,22 +17,22 @@ from .encoder import heatmap,paf,utils,transforms
 # config part for dataloader
 def train_cli(parser):
     group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--train_ann_dir', default='xxx')
-    group.add_argument('--train_image_dir', default='xxx')
-    group.add_argument('--val_ann_dir', default='xxx')
-    group.add_argument('--val_image_dir', default='xxx')
+    group.add_argument('--train_ann_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/annotations/person_keypoints_train2017.json')
+    group.add_argument('--train_image_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/train2017')
+    group.add_argument('--val_ann_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/annotations/person_keypoints_val2017.json')
+    group.add_argument('--val_image_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/val2017')
     group.add_argument('--n_images', default=None, type=int,
                        help='number of images to sample')
-    group.add_argument('--loader_workers', default=4, type=int,
+    group.add_argument('--loader_workers', default=8, type=int,
                        help='number of workers for data loading')
-    group.add_argument('--batch_size', default=32, type=int,
+    group.add_argument('--batch_size', default=36, type=int,
                        help='batch size')
     
 
 
 class COCOKeypoints(Dataset):
-    def __init__(self,ann_path, img_path, augment=None, get_gt=None,
-                 preprocess=None, n_images=None, all_images=False, all_persons=False,
+    def __init__(self,ann_path, img_path, augment=None,
+                 other_aug=None, n_images=None, all_images=False, all_persons=False,
                  input_y=368, input_x=368, stride=8):
 
         self.root = img_path
@@ -50,11 +50,13 @@ class COCOKeypoints(Dataset):
             self.ids = self.ids[:n_images]
         print('Images: {}'.format(len(self.ids)))
 
-        self.preprocess = preprocess or transforms.Normalize()
-        self.image_transform = augment or transforms.image_transform
-        self.target_transforms = get_gt
+        self.preprocess = augment 
+        self.image_transform = other_aug or transforms.image_transform
         self.HEATMAP_COUNT = len(get_keypoints())
         self.LIMB_IDS = kp_connections(get_keypoints())
+        self.input_y = input_y
+        self.input_x = input_x        
+        self.stride = stride
 
         self.log = logging.getLogger(self.__class__.__name__)
 
@@ -191,12 +193,6 @@ class COCOKeypoints(Dataset):
             'file_name': image_info['file_name'],
         }
 
-        meta_init = {
-            'dataset_index': index,
-            'image_id': image_id,
-            'file_name': image_info['file_name'],
-        }
-
         image, anns, meta = self.preprocess(image, anns, None)
              
         if isinstance(image, list):
@@ -237,23 +233,35 @@ class COCOKeypoints(Dataset):
         return len(self.ids)
 
 def train_factory(type_,args):
-
+   
     if type_ == "train":
+        preprocess = transforms.Compose([
+            transforms.Normalize(),
+            transforms.RandomApply(transforms.HFlip(), 0.5),
+            transforms.RescaleRelative(),
+            transforms.Crop(args.square_edge),
+            transforms.CenterPad(args.square_edge)])
         data_ = COCOKeypoints(args.train_ann_dir, args.train_image_dir,
-                              augment=args.augment, get_gt=args.get_gt,
-                              preprocess=args.preprocess, n_images=args.n_images)
+                              augment=preprocess, input_x=args.square_edge, input_y=args.square_edge,
+                              other_aug=transforms.image_transform_train, n_images=args.n_images)
                   
-        train_loader = Dataloader(data_, shuffle=True, batch_size=args.batch_size,
-                                 num_worker=args.loader_workers,
+        train_loader = DataLoader(data_, shuffle=True, batch_size=args.batch_size,
+                                 num_workers=args.loader_workers, #collate_fn=collate_images_anns_meta,
                                  pin_memory=True, drop_last=True)
         return train_loader
     else:
-        data_ = COCOKeypoints(args.val_ann_dir,args.val_image_dir,
-                              get_gt=args.get_gt,
-                              preprocess=args.preprocess)
+        preprocess = transforms.Compose([
+            transforms.Normalize(),
+            # transforms.RandomApply(transforms.HFlip(), 0.5),
+            # transforms.RescaleRelative(),
+            transforms.Crop(args.square_edge),
+            transforms.CenterPad(args.square_edge)])
 
-        val_loader = Dataloader(data_, shuffle=False, batch_size=args.batch_size,
-                                 num_worker=args.loader_workers, 
+        data_ = COCOKeypoints(args.val_ann_dir, args.val_image_dir, augment=preprocess, 
+                              input_x=args.square_edge, input_y=args.square_edge)
+
+        val_loader = DataLoader(data_, shuffle=False, batch_size=args.batch_size,
+                                 num_workers=args.loader_workers, 
                                  pin_memory=True, drop_last=False)
         return val_loader
     

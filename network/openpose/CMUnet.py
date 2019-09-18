@@ -11,11 +11,11 @@ def cli(parser):
     group.add_argument('--heatmap_num', default=19, type=int)
     group.add_argument('--paf_num', default=38, type=int)
     group.add_argument('--paf_stage', default=5, type=int)
-    group.add_argument('--weight_load_dir', default="xxx")
-    group.add_argument('--weight_save_train_dir', default="xxx")
-    group.add_argument('--weight_save_val_dir', default="xxx")
+    group.add_argument('--weight_load_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/")
+    group.add_argument('--weight_save_train_dir', default='./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_.pth')
+    group.add_argument('--weight_save_val_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_.pth")
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
-    group.add_argument('--lr', default=1., type=float)
+    group.add_argument('--lr', default=0.005, type=float)
     group.add_argument('--weight_decay', default=0., type=float)
     group.add_argument('--momentum', default=0.9, type=float)
     group.add_argument('--nesterov', default=True, type=bool)
@@ -25,6 +25,7 @@ class CMUnetwork(nn.Module):
     ''' the newest cmu network'''
     def __init__ (self,args):
         # already finish the init_weight in each block
+        super(CMUnetwork, self).__init__()
         self.state_0 = VGG_block()
         self.state_1 = state_n_block(128, args.paf_num)
         self.state_2 = state_n_block(128+args.paf_num,args.paf_num)
@@ -70,26 +71,35 @@ class dense_block(nn.Module):
        3. default kernal_size = 3,bias = true
     '''
     def __init__(self, in_dim, out_dim):
+        super(dense_block, self).__init__()
         # default inplace = False for ReLU
-        self.conv1 = nn.Sequential([nn.Conv2d(in_dim, 128, 3, 1, 1),
-                                    nn.ReLU(inplace=True)])
-        self.conv2 = nn.Sequential([nn.Conv2d(128, 128, 3, 1, 1),
-                                    nn.ReLU(inplace=True)])
-        self.conv3 = nn.Sequential([nn.Conv2d(128, (out_dim-256), 3, 1, 1),
-                                    nn.ReLU(inplace=True)])
+        self.conv1 = nn.Sequential( nn.Conv2d(in_dim, 128, 1, 1, 0),
+                                    nn.Conv2d(128, 128, 3, 1, 1),
+                                    nn.ReLU(inplace=True))
+        self.conv2 = nn.Sequential(nn.Conv2d(128, 128, 3, 1, 1),
+                                    nn.ReLU(inplace=True))
+        # self.conv3 = nn.Sequential(nn.Conv2d(128, (out_dim-256), 3, 1, 1),
+        #                             nn.ReLU(inplace=True))
+        self.conv3 = nn.Sequential(nn.Conv2d(128, 128, 3, 1, 1),nn.ReLU(inplace=True))
+        #self.conv4 = nn.Sequential(nn.Conv2d(384, out_dim, 1, 1, 0),nn.ReLU(inplace=True))
         self.initialize_weight()
         
 
     def forward(self,input_1):
+        # debug = True
         output_1 = self.conv1(input_1)
         output_2 = self.conv2(output_1)
         output_3 = self.conv3(output_2)
         output = torch.cat([output_1,output_2,output_3],1)
+        #output_4 = self.conv4(output)
+        # if debug:
+        #     output = output_3
+        # output = torch.cat([output_1,output_2,output_3],1)
         return output
     
     def initialize_weight(self):
         for m in self.modules():
-            print('need check init')
+            #print('need check init')
             if isinstance(m, nn.Conv2d):
                 init.normal_(m.weight, std = 0.01)
                 if m.bias is not None:
@@ -102,13 +112,14 @@ class state_n_block(nn.Module):
     '''
     def __init__(self, in_dim, out_dim):
         # 384 = 128 *3
+        super(state_n_block, self).__init__()
         self.block1 = dense_block(in_dim,384)
-        self.block2 = dense_block(384,384)
-        self.block3 = dense_block(384,384)
-        self.block4 = dense_block(384,384)
-        self.block5 = dense_block(384,384)
-        self.conv1  = nn.Sequential([nn.Conv2d(384, 512, 1, 1, 0),
-                                     nn.ReLU(inplace = True)])
+        self.block2 = dense_block(384,128)
+        self.block3 = dense_block(384,128)
+        self.block4 = dense_block(384,128)
+        self.block5 = dense_block(384,128)
+        self.conv1  = nn.Sequential(nn.Conv2d(384, 512, 1, 1, 0),
+                                     nn.ReLU(inplace = True))
         self.conv2  = nn.Conv2d(512,out_dim,1,1,0)
         self.initialize_weight()
 
@@ -126,8 +137,8 @@ class state_n_block(nn.Module):
     def initialize_weight(self):
         '''init 1*1 conv block
         '''
-        init.normal_(self.conv1[1].weight, std =0.01)
-        init.constant_(self.conv1[1].bias, 0.0)
+        init.normal_(self.conv1[0].weight, std =0.01)
+        init.constant_(self.conv1[0].bias, 0.0)
         init.normal_(self.conv2.weight, std =0.01)
         init.constant_(self.conv2.bias, 0.0)
 
@@ -141,33 +152,43 @@ class VGG_block(nn.Module):
         6. all kernal_size = 3, stride = 1
     '''
     def __init__(self, in_dim = 3, out_dim = 128):
-        
+        super(VGG_block, self).__init__()
         self.conv1_1 = nn.Conv2d(3, 64, 3, 1, 1)
         self.conv1_2 = nn.Conv2d(64, 64, 3, 1, 1)
-        self.pool_1 = nn.Maxpooling(2, 2, 0)
+        self.pool_1 = nn.MaxPool2d(2, 2, 0)
         self.conv2_1 = nn.Conv2d(64, 128, 3, 1, 1)
         self.conv2_2 = nn.Conv2d(128, 128, 3, 1, 1)
-        self.pool_2 = nn.Maxpooling(2, 2, 0)
+        self.pool_2 = nn.MaxPool2d(2, 2, 0)
         self.conv3_1 = nn.Conv2d(128, 256, 3, 1, 1)
         self.conv3_2 = nn.Conv2d(256, 256, 3, 1, 1)
         self.conv3_3 = nn.Conv2d(256, 256, 3, 1, 1)
         self.conv3_4 = nn.Conv2d(256, 256, 3, 1, 1)
-        self.pool_3 = nn.Maxpooling(2, 2, 0)
+        self.pool_3 = nn.MaxPool2d(2, 2, 0)
         self.conv4_1 = nn.Conv2d(256, 512, 3, 1, 1)
         self.conv4_2 = nn.Conv2d(512, 512, 3, 1, 1)
         self.conv4_3_cmu = nn.Conv2d(512, 256, 3, 1, 1)
         self.conv4_4_cmu = nn.Conv2d(256, 128, 3, 1, 1)
-        self.initialize_weight()
+        self.initilization()
                                 
     def forward(self,input_1):
         '''inplace middle result '''
-        output_1 = self.block1.forward(input_1)
-        output_1 = self.block2.forward(output_1)
-        output_1 = self.block3.forward(output_1)                     
-        output_1 = self.block4.forward(output_1)
-        output_1 = self.block5.forward(output_1)
-        output_1 = self.conv1(output_1)
-        output_1 = self.conv2(output_1)
+        #print("before_vgg",input_1.size())
+        output_1 = self.conv1_1(input_1)
+        output_1 = self.conv1_2(output_1)
+        output_1 = self.pool_1(output_1)                     
+        output_1 = self.conv2_1(output_1)
+        output_1 = self.conv2_2(output_1)
+        output_1 = self.pool_2(output_1)
+        output_1 = self.conv3_1(output_1)
+        output_1 = self.conv3_2(output_1)
+        output_1 = self.conv3_3(output_1)
+        output_1 = self.conv3_4(output_1)
+        output_1 = self.pool_3(output_1)
+        output_1 = self.conv4_1(output_1)
+        output_1 = self.conv4_2(output_1)
+        output_1 = self.conv4_3_cmu(output_1)
+        output_1 = self.conv4_4_cmu(output_1)
+        #print("after_vgg",input_1.size())
         return output_1
     
     def initilization(self):
@@ -178,7 +199,6 @@ class VGG_block(nn.Module):
                     init.constant_(m.bias, 0.0)
 
  
-
 
     
 
