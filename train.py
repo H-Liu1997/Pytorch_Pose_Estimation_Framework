@@ -27,7 +27,7 @@ def cli():
 
     parser.add_argument('--stride_apply', default=1, type=int,
                         help='apply and reset gradients every n batches')
-    parser.add_argument('--epochs', default=75, type=int,
+    parser.add_argument('--epochs', default=200, type=int,
                         help='number of epochs to train')
     parser.add_argument('--freeze_base', default=0, type=int,
                         help='number of epochs to train with frozen base')
@@ -207,11 +207,12 @@ def optimizer_settings(freeze_or_not,model,args):
         for param in model.module.parameters():
             param.requires_grad = True
         trainable_vars = [param for param in model.parameters() if param.requires_grad]
-        optimizer = torch.optim.SGD(trainable_vars,
-                                lr = args.lr,
-                                momentum = args.momentum,
-                                weight_decay = args.weight_decay,
-                                nesterov = args.nesterov)        
+        optimizer = torch.optim.Adam(trainable_vars, lr=args.lr, betas=(args.momentum, 0.999), eps=1e-08, weight_decay=args.weight_decay, amsgrad=False)
+        # optimizer = torch.optim.SGD(trainable_vars,
+        #                         lr = args.lr,
+        #                         momentum = args.momentum,
+        #                         weight_decay = args.weight_decay,
+        #                         nesterov = args.nesterov)        
     return optimizer
 
 
@@ -239,7 +240,16 @@ if __name__ == "__main__":
         state_dict.update(weight_load_dir)  
         print("load imgnet pretrain weight")
     # add some debug in future
-    model.load_state_dict(state_dict)
+
+    try: 
+        model.load_state_dict(state_dict)
+    except:
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            name = k[7:]
+            new_state_dict[name] = v
+        model.load_state_dict(new_state_dict)
+
     model = torch.nn.DataParallel(model).cuda()
     print("init network success")
 
@@ -274,7 +284,7 @@ if __name__ == "__main__":
                                   verbose=True, threshold=0.0001, threshold_mode='rel',
                                   cooldown=3, min_lr=0, eps=1e-08)
 
-    for epoch in range(args.freeze_base, args.epochs):
+    for epoch in range(75, args.epochs):
         loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
         # save to tensorboard

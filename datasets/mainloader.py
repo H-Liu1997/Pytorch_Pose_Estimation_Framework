@@ -28,8 +28,6 @@ def train_cli(parser):
     group.add_argument('--batch_size', default=36, type=int,
                        help='batch size')
     
-
-
 class COCOKeypoints(Dataset):
     def __init__(self,ann_path, img_path, augment=None,
                  other_aug=None, n_images=None, all_images=False, all_persons=False,
@@ -265,7 +263,6 @@ def train_factory(type_,args):
                                  pin_memory=True, drop_last=False)
         return val_loader
     
-
 def kp_connections(keypoints):
     kp_lines = [
         [keypoints.index('neck'), keypoints.index('right_hip')],  
