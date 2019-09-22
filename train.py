@@ -4,6 +4,8 @@
 import time
 import argparse
 from collections import OrderedDict
+import json
+import os
 
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -13,7 +15,7 @@ from tensorboardX import SummaryWriter
 
 from .datasets import mainloader
 from .network.openpose import CMUnet, CMUnet_loss
-from .EvalTools import decoder, CalScore
+from . import evaluate
 
 def cli():
     parser = argparse.ArgumentParser(
@@ -24,6 +26,7 @@ def cli():
     CMUnet.cli(parser)
     CMUnet_loss.cli(parser)
     mainloader.train_cli(parser)
+    evaluate.val_cli(parser)
 
     parser.add_argument('--stride_apply', default=1, type=int,
                         help='apply and reset gradients every n batches')
@@ -36,7 +39,7 @@ def cli():
     parser.add_argument('--no_augmentation', dest='augmentation',
                         default=True, action='store_false',
                         help='do not apply data augmentation')
-    parser.add_argument('--log_path', default='./Pytorch_Pose_Estimation_Framework/ForSave/log/openpose')
+    parser.add_argument('--log_path', default='./Pytorch_Pose_Estimation_Framework/ForSave/log/openpose1')
     parser.add_argument('--print_fre', default=10, type=int)
     parser.add_argument('--val_type', default=0, type=int)
 
@@ -70,7 +73,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         target_paf = target_paf.cuda()
     
         _, saved_for_loss = model(img)
-        loss_final,loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+        loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
 
         # for i in range(args.paf_stage):
         #     for j in range(args.paf_num):
@@ -80,13 +83,14 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         #         loss_for_control[i][j] += loss['stage_{0}_{1}'.format(i,j)]
 
         optimizer.zero_grad()
-        loss_final.backward()
+        loss["final"].backward()
         optimizer.step()
-        loss_train += loss_final
+        loss_train += loss["final"]
+    
 
         if each_batch % args.print_fre == 0:
             #for tensorboard
-            print_to_terminal(epoch,each_batch,length,loss_final,loss_train,data_time,loss)
+            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalars()
             #writer.add_hyper()
             #writer.add_img()    
@@ -98,24 +102,18 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     loss_train /= length
     return loss_train
 
-def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime,loss_stage):
+def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     ''' some public print information for both train and val
     '''    
     str_print = "Epoch: [{0}][{1}/{2}\t]".format(epoch,current_step,len_of_input)
-    str_print += "Total_loss: {loss:.4f}({loss_avg:.4f})".format(loss = loss,
+    str_print += "Total_loss: {loss:.4f}({loss_avg:.4f})".format(loss = loss['final'],
                             loss_avg = loss_avg/(current_step+1))
-    str_print += "loss0: {loss:.4f}({loss_avg:.4f})".format(loss = loss_stage['stage_0'],
-                            loss_avg = loss_avg/(current_step+1))
-    str_print += "loss1: {loss:.4f}({loss_avg:.4f})".format(loss = loss_stage['stage_1'],
-                            loss_avg = loss_avg/(current_step+1))
-    str_print += "loss2: {loss:.4f}({loss_avg:.4f})".format(loss = loss_stage['stage_2'],
-                            loss_avg = loss_avg/(current_step+1))
-    str_print += "loss3: {loss:.4f}({loss_avg:.4f})".format(loss = loss_stage['stage_3'],
-                            loss_avg = loss_avg/(current_step+1))
-    str_print += "loss4: {loss:.4f}({loss_avg:.4f})".format(loss = loss_stage['stage_4'],
-                            loss_avg = loss_avg/(current_step+1))
-    str_print += "loss5: {loss:.4f}({loss_avg:.4f})".format(loss = loss_stage['stage_5'],
-                            loss_avg = loss_avg/(current_step+1))
+    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_0'])
+    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_1'])
+    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_2'])
+    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_3'])
+    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_4'])
+    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_5'])
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
 
@@ -127,64 +125,46 @@ def val_one_epoch(img_input,model,epoch,args):
                   2.for multi-scale acc, run evaluate.py
     '''
     loss_val, accuracy = 0,0
+    json_output = []
     model.eval()
     length = len(img_input)
-    print(length)
     begin = time.time()
+    val_begin = time.time()
     # temporary
     weight_con = torch.ones([1,args.paf_num+args.heatmap_num])
     weight_con = weight_con.cuda()
     with torch.no_grad():
-        if args.val_type == 0:
-            for each_batch, (img, target_heatmap, target_paf) in enumerate(img_input):
-                data_time = time.time() - begin
-                img = img.cuda()
-                target_heatmap = target_heatmap.cuda()
-                target_paf = target_paf.cuda()
-                
+        for each_batch, (img, target_heatmap, target_paf) in enumerate(img_input):
+            data_time = time.time() - begin
+            img = img.cuda()
+            target_heatmap = target_heatmap.cuda()
+            target_paf = target_paf.cuda()
+
+            if args.val_type == 0:
                 _, saved_for_loss = model(img)
-                loss_final,loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
-                loss_val += loss_final
-                if each_batch % args.print_fre == 0:
-                    print_to_terminal(epoch,each_batch,length,loss_final,loss_val,data_time,loss)
-                begin = time.time()
-            loss_val /= len(img_input)
-
-        # elif args.val_type == 1:
-        #     for each_batch, (img, target) in enumerate(img_input):
-        #         data_time = time.time() - begin
-        #         img = img.cuda()
-        #         target = target.cuda()
-        #         mask = mask.cuda()
-
-        #         output, saved_for_loss = model(img)
-        #         json_file += decoder(output,decoder_set)
+                loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
                 
-        #         if each_batch % config['print']['frequency'] == 0:
-        #             print_to_terminal(epoch,each_batch,length,0,0,data_time)
-        #         begin = time.time()
-        #     accuracy = CalScore(json_file)
+            elif args.val_type == 1:
+                output, saved_for_loss = model(img)
+                json_output = Callfromtrain(output,json_output)
+                loss['final'] = 0
+            else:
+                output, saved_for_loss = model(img)
+                loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+                accuracy = Callfromtrain(output,json_output)
 
-        # else:
-        #     for each_batch, (img, target) in enumerate(img_input):
-        #         data_time = time.time() - begin
-        #         img = img.cuda()
-        #         target = target.cuda()
-        #         mask = mask.cuda()
+            if each_batch % args.print_fre == 0:
+                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+            begin = time.time()
+            loss_val += loss['final']
+        loss_val /= len(img_input)
+        if args.val_type != 0:
+            json_path = os.join(args.result_json,'_{}'.format(epoch),".json") 
+            with open(args.result_json, 'w') as f:
+                json.dump(json_output, f)
+            evaluate.eval_coco(outputs=json_output, json_=json_path, ann_=args.ann_path)
 
-        #         output, saved_for_loss = model(img)
-        #         json_file = decoder(output,decoder_set)
-                
-
-        #         loss = CMUnet_loss.get_loss(saved_for_loss,target,loss_set)
-        #         loss_val += loss
-        #         if each_batch % config['print']['frequency'] == 0:
-        #             print_to_terminal(epoch,each_batch,length,loss['final'],loss_val,data_time)
-        #         begin = time.time() 
-        #     loss_val /= len(img_input)
-        #     accuracy = CalScore(json_file)
-
-    val_time = time.time() - begin
+    val_time = time.time() - val_begin
     print('total val time:',val_time)
     return loss_val, accuracy
 
@@ -284,7 +264,7 @@ if __name__ == "__main__":
                                   verbose=True, threshold=0.0001, threshold_mode='rel',
                                   cooldown=3, min_lr=0, eps=1e-08)
 
-    for epoch in range(75, args.epochs):
+    for epoch in range(args.epochs):
         loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
         # save to tensorboard

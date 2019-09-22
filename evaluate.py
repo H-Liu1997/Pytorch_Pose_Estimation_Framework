@@ -4,13 +4,25 @@
 
 import json
 from .EvalTools.decoder import post
+from .netdebug import rtpose_vgg
 from .EvalTools import eval_trans
 
 
-def CalculateScore():
-    pass
 
-def CallFromTrain(model,img_val,index):
+def val_cli(parser):
+    group = parser.add_argument_group('evaluate')
+    group.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
+                        type=str)
+    group.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/results",
+                        type=str)
+    group.add_argument('--thre1', default=0.1,  type=float)
+    group.add_argument('--thre2', default=0.05, type=float)
+    group.add_argument('--thre3', default=0.5, type=float)
+    group.add_argument('--pooling_factor', default=8, type=int)
+    group.add_argument('--filp', default=False, type=bool) 
+
+
+def CallFromTrain(model,img,target_heatmap,target_paf):
     '''index 0: only val_loss
        index 1: only accuracy
        index 2: val_loss + accuracy
@@ -28,7 +40,8 @@ def CallFromTrain(model,img_val,index):
     #     return outputs,accuracy
     pass
 
-def get_mini_batch(multi_size,args,input_img):
+def get_mini_batch(multi_size,input_img):
+    pooling_factor=8
     ''' return scale_num * 3 * h * w numby array '''
     useful_shape = []
     real_shape = []
@@ -36,45 +49,50 @@ def get_mini_batch(multi_size,args,input_img):
     ''' return the value module pooling_factor == 0 
         choose the min shape and change it to n * 368 '''
     max_input, _, _ = eval_trans.crop_with_factor(input_img, max_size, 
-                                                          factor = args.pooling_factor, is_ceil = True)
+                                                          factor = pooling_factor, is_ceil = True)
     val_batch_numpy = np.zeros((len(multi_size), 3, max_input.shape[0], max_input.shape[1]))
 
     for i in range(len(multi_size)): # wrong 1 time
-        input_crop, _, real_shape_tem = eval_trans.crop_with_factor(input_img, args.scale[i], 
-                                                          factor = args.pooling_factor, is_ceil = True)
-        '''change the input size from h * w * 3 to 3 * h * w and normalization for vgg '''                                                  
-        if args.preprocess:
-            img_final = eval_trans.vgg_preprocess(input_crop)
-        else:
-            pass
+        input_crop, _, real_shape_tem = eval_trans.crop_with_factor(input_img, multi_size[i], 
+                                                          factor = pooling_factor, is_ceil = True)
+        '''change the input size from h * w * 3 to 3 * h * w and normalization for vgg '''  
+        img_final = eval_trans.vgg_preprocess(input_crop) 
+                                                  
+        # if preprocessing == 'vgg':
+        #     img_final = vgg_preprocess(input_crop)
+        # else:
+        #     pass
         val_batch_numpy[i, :, :img_final.shape[1], :img_final.shape[2]] = img_final # wrong 1 time
         useful_shape.append((img_final.shape[1],img_final.shape[2]))
         real_shape.append((real_shape_tem[0],real_shape_tem[1]))
     return val_batch_numpy,useful_shape,real_shape
 
-def Get_Multiple_outputs(input_img,model,args):
+def Get_Multiple_outputs(input_img,model,Scale,Filp_or_not,heatmap_num,paf_num,args):
+    base_size=368
+    pooling_factor=8
     ''' mini_batch for test implement by using multi_scale img for one batch '''
-    average_heatmap = np.zeros((input_img.shape[0], input_img.shape[1], args.heatmap_num)) # wrong 3 time
-    average_paf = np.zeros((input_img.shape[0], input_img.shape[1], args.paf_num)) # wrong 3 time
+    average_heatmap = np.zeros((input_img.shape[0], input_img.shape[1], heatmap_num)) # wrong 3 time
+    average_paf = np.zeros((input_img.shape[0], input_img.shape[1], paf_num)) # wrong 3 time
 
-    multi_size = list( x * args.base_size for x in args.scale)
-    val_batch_numpy,useful_shape,real_shape = get_mini_batch(multi_size,args,input_img)
+    multi_size = list( x * base_size for x in Scale)
+    val_batch_numpy,useful_shape,real_shape = get_mini_batch(multi_size,input_img)
 
     val_batch = torch.from_numpy(val_batch_numpy).cuda().float() #wrong 1 time
-    outputs, _ = model(val_batch,1,1)
+    outputs, _ = model(val_batch)
+    #outputs, _ = model(val_batch)
     #forget some part
     outputs_paf, outputs_heatmap = outputs[-2], outputs[-1]
     pafs = outputs_paf.cpu().data.numpy().transpose(0, 2, 3, 1) # h/8 * w/8 * paf_number
     heatmaps = outputs_heatmap.cpu().data.numpy().transpose(0, 2, 3, 1)
 
     ''' return the size to ori size and get the average value ''' 
-    for n_times in range(len(args.scale)):
+    for n_times in range(len(Scale)):
         ''' this part will occur some error because int()'''
         pafs_useful = pafs[n_times,:int(useful_shape[n_times][0] / 8),:int(useful_shape[n_times][1] / 8) ,:]
         heatmaps_useful = heatmaps[n_times,:int(useful_shape[n_times][0] / 8),:int(useful_shape[n_times][1] / 8),:]
 
-        pafs_up = cv2.resize(pafs_useful, None, fx = args.pooling_factor, fy = args.pooling_factor, interpolation=cv2.INTER_CUBIC)
-        heatmaps_up = cv2.resize(heatmaps_useful, None, fx = args.pooling_factor, fy = args.pooling_factor, interpolation=cv2.INTER_CUBIC)
+        pafs_up = cv2.resize(pafs_useful, None, fx = pooling_factor, fy = pooling_factor, interpolation=cv2.INTER_CUBIC)
+        heatmaps_up = cv2.resize(heatmaps_useful, None, fx = pooling_factor, fy = pooling_factor, interpolation=cv2.INTER_CUBIC)
 
         '''this part has some difference need check
            the resize para(x,y) isn't height * width, is width * height '''
@@ -83,11 +101,11 @@ def Get_Multiple_outputs(input_img,model,args):
         heatmaps_up = heatmaps_up[0:real_shape[n_times][0], 0:real_shape[n_times][1], :]
         pafs_ori = cv2.resize(pafs_up,(input_img.shape[1],input_img.shape[0]),interpolation = cv2.INTER_CUBIC)
         heatmaps_ori = cv2.resize(heatmaps_up,(input_img.shape[1],input_img.shape[0]),interpolation = cv2.INTER_CUBIC)
-        average_paf = average_paf + pafs_ori / len(args.scale)
-        average_heatmap = average_heatmap + heatmaps_ori / len(args.scale)
+        average_paf = average_paf + pafs_ori / len(Scale)
+        average_heatmap = average_heatmap + heatmaps_ori / len(Scale)
         
     ''' if Filp = true, run the following code '''
-    if args.filp:
+    if Filp_or_not:
         pass
     return average_paf,average_heatmap
 
@@ -128,7 +146,7 @@ def append_result(image_id, person_to_joint_assoc, joint_list, outputs):
         one_result["score"] = person_to_joint_assoc[ridxPred, -2] * \
             person_to_joint_assoc[ridxPred, -1]
         one_result["keypoints"] = list(keypoints.reshape(51))
-
+        #print(one_result)
         outputs.append(one_result)
 
 def eval_coco(outputs, args, imgIds):
@@ -144,7 +162,7 @@ def eval_coco(outputs, args, imgIds):
     #dataType = 'val2014'
     #annFile = '%s/annotations/%s_%s.json' % (dataDir, prefix, dataType)
     cocoGt = COCO(args.ann_dir)  # load annotations
-    cocoDt = cocoGt.loadRes(args.results.json)  # load model outputs
+    cocoDt = cocoGt.loadRes(args.result_json)  # load model outputs
 
     # running evaluation
     cocoEval = COCOeval(cocoGt, cocoDt, annType)
@@ -156,6 +174,10 @@ def eval_coco(outputs, args, imgIds):
     # return Average Precision
     return cocoEval.stats[0]
 
+
+
+    
+
 if __name__ == "__main__":
     
     import cv2
@@ -163,9 +185,9 @@ if __name__ == "__main__":
     import argparse
     import torch
     import numpy as np
-    from pycocotools import COCO
+    from pycocotools.coco import COCO
     from collections import OrderedDict
-    from .network.openpose import CMUnet
+    from .network.openpose import CMUnet 
     
     #config parameters
     parser = argparse.ArgumentParser(description=__doc__,
@@ -173,13 +195,13 @@ if __name__ == "__main__":
     parser.add_argument('--scale',default=[1],type=list)
     parser.add_argument('--heatmap_num',default=19,type=int)
     parser.add_argument('--paf_num',default=38,type=int)
-    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_01.pth",
+    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_03.pth",
                         type=str)
-    parser.add_argument('--eval_dir',default="./xxx/val2017",type=str)
-    parser.add_argument('--ann_dir',default="./xxx/val2017",type=str)
-    parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose",
+    parser.add_argument('--eval_dir',default="/home/ikenaga/Public/coco_dataset/images/val2017",type=str)
+    parser.add_argument('--ann_dir',default="/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_val2017.json",type=str)
+    parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
                         type=str)
-    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/results.json",
+    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/results_np.json",
                         type=str)
     parser.add_argument('--thre1', default=0.1, type=float)
     parser.add_argument('--thre2', default=0.05, type=float)
@@ -188,49 +210,103 @@ if __name__ == "__main__":
     parser.add_argument("--base_size",default=368,type=int) 
     parser.add_argument('--filp', default=False, type=bool)                  
     parser.add_argument('--cal_score', default=True, type=bool)
-    parser.add_argument('--proprecess', default=True, type=bool)
+    parser.add_argument('--preprocess', default=True, type=bool)
     args = parser.parse_args()
 
     outputs = []
+    # #for debug
+    # state_dict = torch.load(args.weight_for_eval)
+    # # model_dict = rtpose_vgg_cnn.get_model(trunk='vgg19')
+    # # model = rtpose_vgg_cnn.Model_Total(model_dict,1,1)
+    # model = rtpose_vgg.get_model(trunk='vgg19')
+
+    # model = torch.nn.DataParallel(model).cuda()
+    
+    # # from collections import OrderedDict
+    # # new_state_dict = OrderedDict()
+    # # for k, v in state_dict.items():
+    # #     name = "module." + k[:] # remove `module.`
+    # #     new_state_dict[name] = v
+    # model.load_state_dict(state_dict)
+    # model.eval()
+    # model.float()
+    # model = model.cuda()
+
     #load model
-    model = CMUnet(args)
+    model = CMUnet.CMUnetwork(args)
     state_dict = torch.load(args.weight_for_eval)
     try:
-        model = model.load(state_dict)
+        model.load_state_dict(state_dict)
     except:
         new_dict = OrderedDict()
         for k,v in state_dict.items():
             name = k[7:]
             new_dict[name] = v
-        model = model.load(new_dict)
+        model.load_state_dict(new_dict)
+
     model = torch.nn.DataParallel(model).cuda()
     model.float()
     model.eval()
+    print("load model success")
 
     #load test data
     ann = COCO(args.ann_dir)
-    eval_ids = ann.getImgIds()
+    catid =ann.getCatIds(catNms=['person'])
+    eval_ids = ann.getImgIds(catIds=catid)
+    #eval_ids = ann.getImgIds()
     
     #Start eval
-    print("Processing Images in validation set")
-    for ids in len(eval_ids):
+    print("Processing Images in validation set"," total:",len(eval_ids))
+    import matplotlib.pyplot as plt
+    for ids in range(len(eval_ids)):
+        if ids%10 == 0:
+            print(ids)
         img = ann.loadImgs(eval_ids[ids])[0]
         file_name = img['file_name']
         file_path = os.path.join(args.eval_dir, file_name)
         oriImg = cv2.imread(file_path)
 
-        paf, heatmap = Get_Multiple_outputs(oriImg,model,args)
-        param = {'thre1': args.thre1, 'thre2': args.thre2, 'thre3': args.thre3}
-        _, _, candidate, subset = post.decode_pose(
-            oriImg, param, heatmap, paf)
+        pafs, heatmaps = Get_Multiple_outputs(oriImg,model,args.scale,args.filp,args.heatmap_num,args.paf_num,args)
+
+        # # fordebug
+        # plt.figure(num = 0, figsize = (15,4))
+        # plt.subplot(121)
+        # plt.imshow(pafs[:,:,0])
+        # plt.subplot(122)
+        # plt.imshow(heatmaps[:,:,10])
+        # plt.savefig("test_heatmap_paf_add.png") #wrong 1 time two reasons
+        # plt.show()
+        # plt.figure(num = 1, figsize = (15,4))
+        # plt.subplot(121)
+        # pafs_all = np.zeros((pafs.shape[0],pafs.shape[1]))
+        # for i in range(pafs.shape[2]):
+        #     pafs_all = pafs_all + pafs[:,:,i] / pafs.shape[2]
         
+        # heatmaps_all = np.zeros((heatmaps.shape[0],heatmaps.shape[1]))
+        # for i in range(heatmaps.shape[2]):
+        #     heatmaps_all = heatmaps_all + heatmaps[:,:,i] / heatmaps.shape[2]
+
+        # plt.imshow(pafs_all[:,:])
+        # plt.subplot(122)
+        # plt.imshow(heatmaps_all[:,:])
+        # plt.savefig("test_heatmap_paf_all.png") #wrong 1 time two reasons
+        # plt.show()
+
+        param = {'thre1': args.thre1, 'thre2': args.thre2, 'thre3': args.thre3}
+        
+        _, to_plot, candidate, subset = post.decode_pose(
+            oriImg, param, heatmaps, pafs)
+        #vis_path = os.path.join(args.result_img_dir, file_name)
+        #cv2.imwrite(vis_path, to_plot)
+        #print(subset)
         append_result(eval_ids[ids], subset, candidate, outputs)
 
-        with open(args.result_json, 'w') as f:
-            json.dump(outputs, f)
-        if args.cal_score:
-            eval_coco(outputs=outputs, args=args, imgIds=eval_ids)
-        print("finish")
+    #print(outputs)
+    with open(args.result_json, 'w') as f:
+        json.dump(outputs, f)
+    if args.cal_score:
+        eval_coco(outputs=outputs, args=args, imgIds=eval_ids)
+    print("finish")
     
 
 

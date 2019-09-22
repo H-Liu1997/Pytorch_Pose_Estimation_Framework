@@ -62,4 +62,4 @@ def get_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
             loss['stage_{}'.format(i)] = criterion(saved_for_loss[i],target_heat)
             loss['final'] += loss['stage_{}'.format(i)]
     
-    return loss['final'],loss
+    return loss

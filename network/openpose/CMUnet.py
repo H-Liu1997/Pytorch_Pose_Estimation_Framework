@@ -12,10 +12,10 @@ def cli(parser):
     group.add_argument('--paf_num', default=38, type=int)
     group.add_argument('--paf_stage', default=5, type=int)
     group.add_argument('--weight_load_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/")
-    group.add_argument('--weight_save_train_dir', default='./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_.pth')
-    group.add_argument('--weight_save_val_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_.pth")
+    group.add_argument('--weight_save_train_dir', default='./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_min.pth')
+    group.add_argument('--weight_save_val_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_min.pth")
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
-    group.add_argument('--lr', default=0.005, type=float)
+    group.add_argument('--lr', default=0.00001, type=float)
     group.add_argument('--weight_decay', default=0., type=float)
     group.add_argument('--momentum', default=0.9, type=float)
     group.add_argument('--nesterov', default=True, type=bool)
@@ -62,7 +62,7 @@ class CMUnetwork(nn.Module):
         output_6 = self.state_6(input_6)
         saved_for_loss.append(output_6)
 
-        return output_6, saved_for_loss
+        return (output_5,output_6), saved_for_loss
 
 
 class dense_block(nn.Module):

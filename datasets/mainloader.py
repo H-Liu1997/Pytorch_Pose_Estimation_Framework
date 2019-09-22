@@ -17,20 +17,20 @@ from .encoder import heatmap,paf,utils,transforms
 # config part for dataloader
 def train_cli(parser):
     group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--train_ann_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/annotations/person_keypoints_train2017.json')
-    group.add_argument('--train_image_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/train2017')
-    group.add_argument('--val_ann_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/annotations/person_keypoints_val2017.json')
-    group.add_argument('--val_image_dir', default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/val2017')
+    group.add_argument('--train_ann_dir', default='/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_train2017.json')
+    group.add_argument('--train_image_dir', default='/home/ikenaga/Public/coco_dataset/images/train2017')
+    group.add_argument('--val_ann_dir', default='/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_val2017.json')
+    group.add_argument('--val_image_dir', default='/home/ikenaga/Public/coco_dataset/images/val2017')
     group.add_argument('--n_images', default=None, type=int,
                        help='number of images to sample')
     group.add_argument('--loader_workers', default=8, type=int,
                        help='number of workers for data loading')
-    group.add_argument('--batch_size', default=36, type=int,
+    group.add_argument('--batch_size', default=16, type=int,
                        help='batch size')
     
 class COCOKeypoints(Dataset):
     def __init__(self,ann_path, img_path, augment=None,
-                 other_aug=None, n_images=None, all_images=False, all_persons=False,
+                 other_aug=None, n_images=None, all_images=False, all_persons=True,
                  input_y=368, input_x=368, stride=8):
 
         self.root = img_path
