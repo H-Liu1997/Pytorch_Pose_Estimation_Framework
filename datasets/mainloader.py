@@ -3,10 +3,12 @@
     then using the dataloader by pytorch
     the dataloader will call getitem of the cocokeypoints instance.
 """
+
 import copy
 import logging
 import os
 from PIL import Image
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader,Dataset
@@ -14,8 +16,15 @@ from pycocotools.coco import COCO
 
 from .encoder import heatmap,paf,utils,transforms
 
-# config part for dataloader
 def train_cli(parser):
+    ''' some parameters of dataloader
+        1. data path
+        2. training img size
+        3. training img number
+        4. some augment setting
+        ...
+    '''
+
     group = parser.add_argument_group('dataset and loader')
     group.add_argument('--train_ann_dir', default='/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_train2017.json')
     group.add_argument('--train_image_dir', default='/home/ikenaga/Public/coco_dataset/images/train2017')
@@ -25,10 +34,15 @@ def train_cli(parser):
                        help='number of images to sample')
     group.add_argument('--loader_workers', default=8, type=int,
                        help='number of workers for data loading')
-    group.add_argument('--batch_size', default=16, type=int,
-                       help='batch size')
-    
+    group.add_argument('--square_edge', default=368, type=int,
+                        help='square edge of input images')
+    group.add_argument('--no_augmentation', dest='augmentation',
+                        default=True, action='store_false',
+                        help='do not apply data augmentation')
+                          
 class COCOKeypoints(Dataset):
+    ''' finish generate mask and gt for data '''
+
     def __init__(self,ann_path, img_path, augment=None,
                  other_aug=None, n_images=None, all_images=False, all_persons=True,
                  input_y=368, input_x=368, stride=8):
@@ -158,13 +172,14 @@ class COCOKeypoints(Dataset):
         return heatmaps, pafs
 
     def remove_illegal_joint(self, keypoints):
-
-        MAGIC_CONSTANT = (-1, -1, 0)
-        mask = np.logical_or.reduce((keypoints[:, :, 0] >= self.input_x,
-                                     keypoints[:, :, 0] < 0,
-                                     keypoints[:, :, 1] >= self.input_y,
-                                     keypoints[:, :, 1] < 0))
-        keypoints[mask] = MAGIC_CONSTANT
+        
+        if len(keypoints) != 0:
+            MAGIC_CONSTANT = (-1, -1, 0)
+            mask = np.logical_or.reduce((keypoints[:, :, 0] >= self.input_x,
+                                        keypoints[:, :, 0] < 0,
+                                        keypoints[:, :, 1] >= self.input_y,
+                                        keypoints[:, :, 1] < 0))
+            keypoints[mask] = MAGIC_CONSTANT
 
         return keypoints
 
@@ -231,6 +246,7 @@ class COCOKeypoints(Dataset):
         return len(self.ids)
 
 def train_factory(type_,args):
+    ''' return train or val or pertrain data '''
    
     if type_ == "train":
         preprocess = transforms.Compose([
@@ -262,7 +278,7 @@ def train_factory(type_,args):
                                  num_workers=args.loader_workers, 
                                  pin_memory=True, drop_last=False)
         return val_loader
-    
+
 def kp_connections(keypoints):
     kp_lines = [
         [keypoints.index('neck'), keypoints.index('right_hip')],  
@@ -311,5 +327,5 @@ def get_keypoints():
         'right_ear',
         'left_ear']
 
-    return keypoints
+    return keypoints    
 

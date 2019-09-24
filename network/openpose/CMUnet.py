@@ -5,8 +5,12 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 
-
 def cli(parser):
+    ''' network config
+        1. paf and heatmap nums
+        2. weight path
+    '''
+
     group = parser.add_argument_group('network')
     group.add_argument('--heatmap_num', default=19, type=int)
     group.add_argument('--paf_num', default=38, type=int)
@@ -15,14 +19,10 @@ def cli(parser):
     group.add_argument('--weight_save_train_dir', default='./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_min.pth')
     group.add_argument('--weight_save_val_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_min.pth")
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
-    group.add_argument('--lr', default=0.00001, type=float)
-    group.add_argument('--weight_decay', default=0., type=float)
-    group.add_argument('--momentum', default=0.9, type=float)
-    group.add_argument('--nesterov', default=True, type=bool)
     
-
 class CMUnetwork(nn.Module):
     ''' the newest cmu network'''
+
     def __init__ (self,args):
         # already finish the init_weight in each block
         super(CMUnetwork, self).__init__()
@@ -70,6 +70,7 @@ class dense_block(nn.Module):
        2. add conv1,2,3 output together to output
        3. default kernal_size = 3,bias = true
     '''
+
     def __init__(self, in_dim, out_dim):
         super(dense_block, self).__init__()
         # default inplace = False for ReLU
@@ -110,6 +111,7 @@ class state_n_block(nn.Module):
     ''' 1. for state 1 in_dim = 128
         2. for other state depend on the paf and heatmap channels
     '''
+
     def __init__(self, in_dim, out_dim):
         # 384 = 128 *3
         super(state_n_block, self).__init__()
@@ -151,6 +153,7 @@ class VGG_block(nn.Module):
         5. default in_dim = 3,out_dim = 128
         6. all kernal_size = 3, stride = 1
     '''
+    
     def __init__(self, in_dim = 3, out_dim = 128):
         super(VGG_block, self).__init__()
         self.conv1_1 = nn.Conv2d(3, 64, 3, 1, 1)
