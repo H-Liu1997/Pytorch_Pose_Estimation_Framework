@@ -17,9 +17,6 @@ def cli(parser):
     group.add_argument('--heatmap_num', default=19, type=int)
     group.add_argument('--paf_num', default=38, type=int)
     group.add_argument('--paf_stage', default=5, type=int)
-    group.add_argument('--weight_load_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/")
-    group.add_argument('--weight_save_train_dir', default='./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_min.pth')
-    group.add_argument('--weight_save_val_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_min.pth")
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
     
 class CMUnetwork(nn.Module):

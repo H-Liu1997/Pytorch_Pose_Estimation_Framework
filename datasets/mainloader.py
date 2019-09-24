@@ -26,10 +26,10 @@ def train_cli(parser):
     '''
 
     group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--train_ann_dir', default='/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_train2017.json')
-    group.add_argument('--train_image_dir', default='/home/ikenaga/Public/coco_dataset/images/train2017')
-    group.add_argument('--val_ann_dir', default='/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_val2017.json')
-    group.add_argument('--val_image_dir', default='/home/ikenaga/Public/coco_dataset/images/val2017')
+    group.add_argument('--train_ann_dir', default='/home/liuhaiyang/dataset/COCO/annotations/person_keypoints_train2017.json')
+    group.add_argument('--train_image_dir', default='/home/liuhaiyang/dataset/COCO/images/train2017')
+    group.add_argument('--val_ann_dir', default='/home/liuhaiyang/dataset/COCO/annotations/person_keypoints_val2017.json')
+    group.add_argument('--val_image_dir', default='/home/liuhaiyang/dataset/COCO/images/val2017')
     group.add_argument('--n_images', default=None, type=int,
                        help='number of images to sample')
     group.add_argument('--loader_workers', default=8, type=int,

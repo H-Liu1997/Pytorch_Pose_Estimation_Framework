@@ -19,6 +19,11 @@ from .datasets import mainloader
 from .network.openpose import CMUnet, CMUnet_loss
 from . import evaluate
 
+
+''' auto lr
+    step write txt
+'''
+
 def cli():
     ''' set all parameters '''
 
@@ -38,45 +43,47 @@ def cli():
                         help='number of epochs to train with frozen base')
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--gpu', default=[0,1], type=list, help="gpu number")
-    parser.add_argument('--per_batch_size', default=16, type=int,
+    parser.add_argument('--per_batch_size', default= 8, type=int,
                         help='batch size per gpu')
     
     # optimizer
     parser.add_argument('-opt_type', default='sgd', type=str,help='sgd or adam')
-    parser.add_argument('--auto_lr', default=False, type=bool)
-    parser.add_argument('--lr', default=1e-5, type=float)
+    parser.add_argument('--auto_lr', default=True, type=bool)
+    parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--weight_decay', default=0., type=float)
     parser.add_argument('--step', default=[60], type=list)
     parser.add_argument('--momentum_or_beta1', default=0.9, type=float)
     parser.add_argument('--beta2', default=0.999, type=float)
     parser.add_argument("--epr", default=1e-8, type=float)
-    parser.add_argument('--nesterov', default=True, type=bool)
+    parser.add_argument('--nesterov', default=False, type=bool)
 
     # others
     parser.add_argument('--name', default='op_test1', type=str)
     parser.add_argument('--log_path_base', default='./Pytorch_Pose_Estimation_Framework/ForSave/log/')
+    parser.add_argument('--weight_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
     parser.add_argument('--print_fre', default=10, type=int)
     parser.add_argument('--val_type', default=0, type=int)
    
     args = parser.parse_args()
     return args
 
-def save_config(log_path,batch_size,args):
+def save_config(log_path,weight_path,batch_size,args):
     ''' save the parameters to a txt file in the logpath '''
 
-    os.mkdir(log_path)
-    with open(os.join(log_path,"config.txt"),'w') as f:
-        f.write('name: ', args.name, '/n')
-        f.write('opt: ', args.opt_type, '/n')
-        f.write('lr: ', args.lr, '/n')
-        f.write('weight_decay: ', args.weight_decay, '/n')
-        f.write('step: ', args.step, '/n')
-        f.write('beta1: ', args.momentum_or_beta1, '/n')
-        f.write('beta2: ', args.beta2, '/n')
-        f.write('epr: ', args.epr, '/n')
-        f.write('nesterov: ', args.nesterov, '/n')
-        f.write('batch_size: ', batch_size, '/n')
-
+    #os.mkdir(log_path)
+    #os.mkdir(weight_path)
+    # with open(os.path.join(log_path,"config.txt"),'w') as f:
+    #     f.write('name: ', args.name, '/n')
+    #     f.write('opt: ', args.opt_type, '/n')
+    #     f.write('lr: ', args.lr, '/n')
+    #     f.write('weight_decay: ', args.weight_decay, '/n')
+    #     #f.write('step: ', args.step, '/n')
+    #     f.write('beta1: ', args.momentum_or_beta1, '/n')
+    #     f.write('beta2: ', args.beta2, '/n')
+    #     f.write('epr: ', args.epr, '/n')
+    #     f.write('nesterov: ', args.nesterov, '/n')
+    #     f.write('batch_size: ', batch_size, '/n')
+    
 def load_weghts(model,args):
     ''' load weights for models in the following order
         1. load old weights and epoch num
@@ -109,7 +116,7 @@ def load_weghts(model,args):
         model.load_state_dict(new_state_dict)
     
     # multi_gpu and cuda
-    model = torch.nn.DataParallel(model).cuda()
+    model = torch.nn.DataParallel(model,args.gpu).cuda()
     print("init network success")
 
 def optimizer_settings(freeze_or_not,model,args):
@@ -157,7 +164,7 @@ def optimizer_settings(freeze_or_not,model,args):
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
 
-    lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, 
+    lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=6, 
                                   verbose=True, threshold=0.0001, threshold_mode='rel',
                                   cooldown=3, min_lr=0, eps=1e-08)
 
@@ -271,7 +278,7 @@ def val_one_epoch(img_input,model,epoch,args):
         #     loss_val += loss['final']
         # loss_val /= len(img_input)
         # if args.val_type != 0:
-        #     json_path = os.join(args.result_json,'_{}'.format(epoch),".json") 
+        #     json_path = os.path.join(args.result_json,'_{}'.format(epoch),".json") 
         #     with open(args.result_json, 'w') as f:
         #         json.dump(json_output, f)
         #     evaluate.eval_coco(outputs=json_output, json_=json_path, ann_=args.ann_path)
@@ -289,8 +296,11 @@ def main():
      #load config parameters
     args = cli()
     batch_size = len(args.gpu) * args.per_batch_size
-    log_path = os.join(args.log_path_base,args.name)
-    save_config(log_path,batch_size,args)
+    log_path = os.path.join(args.log_path_base,args.name)
+    weight_path = os.path.join(args.weight_dir,args.name)
+    save_config(log_path,weight_path,batch_size,args)
+    args.batch_size = batch_size
+    args.weight_load_dir = weight_path
     
     # data portion
     train_loader = mainloader.train_factory('train',args)
@@ -319,10 +329,12 @@ def main():
 
             # val_weight is best val_loss weights
             # save train_weight is for continue training
+            save_train_path = os.path.join(weight_path,"_train_{}.pth".format(epoch))
+            save_val_path = os.path.join(weight_path,"_val_{}.pth".format(epoch))
             if val_loss_min > loss_val:
                 val_loss_min = min(val_loss_min,loss_val)
-                torch.save(model.state_dict(),args.weight_save_val_dir)
-            torch.save(model.state_dict(),args.weight_save_train_dir)
+                torch.save(model.state_dict(),save_val_path)
+            torch.save(model.state_dict(),save_train_path)
     
     #start normal training
     print("start normal training") 
@@ -347,9 +359,9 @@ def main():
         # save train_weight is for continue training
         if val_loss_min > loss_val:
             val_loss_min = min(val_loss_min,loss_val)
-            torch.save(model.state_dict(),args.weight_save_val_dir)
+            torch.save(model.state_dict(),save_val_path)
 
-        torch.save(model.state_dict(),args.weight_save_train_dir)
+        torch.save(model.state_dict(),save_train_path)
 
     writer.close()
 

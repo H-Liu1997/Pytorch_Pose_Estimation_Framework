@@ -4,7 +4,7 @@
 
 import json
 from .EvalTools.decoder import post
-from .netdebug import rtpose_vgg
+#from .netdebug import rtpose_vgg
 from .EvalTools import eval_trans
 
 
