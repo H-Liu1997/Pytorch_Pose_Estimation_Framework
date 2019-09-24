@@ -1,5 +1,7 @@
-# The newest OpenPose Pytorch Implementation
-# __author__ = "Haiyang Liu"
+# ------------------------------------------------------------------------------
+# The newest OpenPose Pytorch Implementation 
+# Written by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
 
 import torch
 import torch.nn as nn
@@ -153,7 +155,7 @@ class VGG_block(nn.Module):
         5. default in_dim = 3,out_dim = 128
         6. all kernal_size = 3, stride = 1
     '''
-    
+
     def __init__(self, in_dim = 3, out_dim = 128):
         super(VGG_block, self).__init__()
         self.conv1_1 = nn.Conv2d(3, 64, 3, 1, 1)

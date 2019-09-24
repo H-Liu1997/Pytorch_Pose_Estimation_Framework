@@ -1,14 +1,16 @@
-#define the CMUnet loss calculation
-#__author__ = 'Haiyang Liu'
+# ------------------------------------------------------------------------------
+# define the CMUnet loss calculation 
+# Written by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
+
 import torch 
 import torch.nn as nn
 
-
-
 def cli(parser):
+    ''' some para for loss control '''
+
     group = parser.add_argument_group('loss')
     group.add_argument('--auto_weight', default=False, type=bool)
-
 
 def get_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     ''' input： the output of CMU net
@@ -16,6 +18,7 @@ def get_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
                 the mask for unanno-file
                 config control the weight of loss
     '''
+
     loss = {}
     length = len(saved_for_loss)
     loss['final'] = 0
