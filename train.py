@@ -69,7 +69,9 @@ def cli():
 
 def save_config(log_path,weight_path,batch_size,args):
     ''' save the parameters to a txt file in the logpath '''
-
+    
+    args.batch_size = batch_size
+    args.weight_load_dir = weight_path
     #os.mkdir(log_path)
     #os.mkdir(weight_path)
     # with open(os.path.join(log_path,"config.txt"),'w') as f:
@@ -114,9 +116,7 @@ def load_weghts(model,args):
             name = k[7:]
             new_state_dict[name] = v
         model.load_state_dict(new_state_dict)
-    
-    # multi_gpu and cuda
-    model = torch.nn.DataParallel(model,args.gpu).cuda()
+
     print("init network success")
 
 def optimizer_settings(freeze_or_not,model,args):
@@ -164,8 +164,8 @@ def optimizer_settings(freeze_or_not,model,args):
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
 
-    lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=6, 
-                                  verbose=True, threshold=0.0001, threshold_mode='rel',
+    lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.333, patience=5, 
+                                  verbose=True, threshold=1e-4, threshold_mode='rel',
                                   cooldown=3, min_lr=0, eps=1e-08)
 
     return optimizer,lr_scheduler
@@ -225,12 +225,12 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     str_print = "Epoch: [{0}][{1}/{2}\t]".format(epoch,current_step,len_of_input)
     str_print += "Total_loss: {loss:.4f}({loss_avg:.4f})".format(loss = loss['final'],
                             loss_avg = loss_avg/(current_step+1))
-    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_0'])
-    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_1'])
-    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_2'])
-    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_3'])
-    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_4'])
-    str_print += "loss0: {loss:.4f}".format(loss = loss['stage_5'])
+    str_print += "loss0: {loss:.4f}  ".format(loss = loss['stage_0'])
+    str_print += "loss1: {loss:.4f}  ".format(loss = loss['stage_1'])
+    str_print += "loss2: {loss:.4f}  ".format(loss = loss['stage_2'])
+    str_print += "loss3: {loss:.4f}  ".format(loss = loss['stage_3'])
+    str_print += "loss4: {loss:.4f}  ".format(loss = loss['stage_4'])
+    str_print += "loss5: {loss:.4f}  ".format(loss = loss['stage_5'])
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
 
@@ -299,8 +299,6 @@ def main():
     log_path = os.path.join(args.log_path_base,args.name)
     weight_path = os.path.join(args.weight_dir,args.name)
     save_config(log_path,weight_path,batch_size,args)
-    args.batch_size = batch_size
-    args.weight_load_dir = weight_path
     
     # data portion
     train_loader = mainloader.train_factory('train',args)
@@ -309,6 +307,8 @@ def main():
     # network portion
     model = CMUnet.CMUnetwork(args)
     load_weghts(model,args)
+    # multi_gpu and cuda
+    model = torch.nn.DataParallel(model,args.gpu).cuda()
 
     # val loss boundary and tensorboard path
     val_loss_min = np.inf
@@ -357,10 +357,17 @@ def main():
 
         # val_weight is best val_loss weights
         # save train_weight is for continue training
+        save_train_path = os.path.join(weight_path,"_train_{}.pth".format(epoch))
+        save_val_path = os.path.join(weight_path,"_val_{}.pth".format(epoch))
         if val_loss_min > loss_val:
+            counter = 0
             val_loss_min = min(val_loss_min,loss_val)
             torch.save(model.state_dict(),save_val_path)
-
+        else:counter+=1
+        if counter == 5:
+            counter = 1
+            lr = args.lr * 0.1
+        print('current lr:',lr)
         torch.save(model.state_dict(),save_train_path)
 
     writer.close()
