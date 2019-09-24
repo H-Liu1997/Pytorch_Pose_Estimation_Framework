@@ -20,8 +20,7 @@ from .network.openpose import CMUnet, CMUnet_loss
 from . import evaluate
 
 
-''' auto lr
-    step write txt
+''' load old weight, openpose old model
 '''
 
 def cli():
@@ -43,22 +42,22 @@ def cli():
                         help='number of epochs to train with frozen base')
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--gpu', default=[0,1], type=list, help="gpu number")
-    parser.add_argument('--per_batch_size', default= 8, type=int,
+    parser.add_argument('--per_batch_size', default= 5, type=int,
                         help='batch size per gpu')
     
     # optimizer
     parser.add_argument('-opt_type', default='sgd', type=str,help='sgd or adam')
     parser.add_argument('--auto_lr', default=True, type=bool)
-    parser.add_argument('--lr', default=1e-3, type=float)
-    parser.add_argument('--weight_decay', default=0., type=float)
-    parser.add_argument('--step', default=[60], type=list)
+    parser.add_argument('--lr', default=4e-5, type=float)
+    parser.add_argument('--weight_decay', default=5e-4, type=float)
+    parser.add_argument('--step', default=[22,44], type=list)
     parser.add_argument('--momentum_or_beta1', default=0.9, type=float)
     parser.add_argument('--beta2', default=0.999, type=float)
     parser.add_argument("--epr", default=1e-8, type=float)
     parser.add_argument('--nesterov', default=False, type=bool)
 
     # others
-    parser.add_argument('--name', default='op_test1', type=str)
+    parser.add_argument('--name', default='op_sameori', type=str)
     parser.add_argument('--log_path_base', default='./Pytorch_Pose_Estimation_Framework/ForSave/log/')
     parser.add_argument('--weight_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
     parser.add_argument('--print_fre', default=10, type=int)
@@ -71,20 +70,32 @@ def save_config(log_path,weight_path,batch_size,args):
     ''' save the parameters to a txt file in the logpath '''
     
     args.batch_size = batch_size
-    args.weight_load_dir = weight_path
-    #os.mkdir(log_path)
-    #os.mkdir(weight_path)
-    # with open(os.path.join(log_path,"config.txt"),'w') as f:
-    #     f.write('name: ', args.name, '/n')
-    #     f.write('opt: ', args.opt_type, '/n')
-    #     f.write('lr: ', args.lr, '/n')
-    #     f.write('weight_decay: ', args.weight_decay, '/n')
-    #     #f.write('step: ', args.step, '/n')
-    #     f.write('beta1: ', args.momentum_or_beta1, '/n')
-    #     f.write('beta2: ', args.beta2, '/n')
-    #     f.write('epr: ', args.epr, '/n')
-    #     f.write('nesterov: ', args.nesterov, '/n')
-    #     f.write('batch_size: ', batch_size, '/n')
+    args.weight_load_dir = './Pytorch_Pose_Estimation_Framework/ForSave/weight/op_test1'
+    try:
+        os.mkdir(log_path)
+        os.mkdir(weight_path)
+        with open(os.path.join(log_path,"config.txt"),'w') as f:
+            str1 = 'name: ' +  str(args.name) + '\n'
+            f.write(str1)
+            str1 = 'opt: ' +  str(args.opt_type) + '\n'
+            f.write(str1)
+            str1 = 'lr: ' +  str(args.lr) + '\n'
+            f.write(str1)
+            str1 = 'weight_decay: ' +  str(args.weight_decay) + '\n'
+            f.write(str1)
+            str1 = 'beta1: ' +  str(args.momentum_or_beta1) + '\n'
+            f.write(str1)
+            str1 = 'beta2: ' +  str(args.beta2) + '\n'
+            f.write(str1)
+            str1 = 'nesterov: ' +  str(args.nesterov) + '\n'
+            f.write(str1)
+            str1 = 'batch size: ' +  str(batch_size) + '\n'
+            f.write(str1)
+            str1 = 'step: ' +  str(args.step[0]) +" "+  str(args.step[1]) + '\n'
+            f.write(str1)
+    except:
+        pass
+
     
 def load_weghts(model,args):
     ''' load weights for models in the following order
@@ -133,13 +144,13 @@ def optimizer_settings(freeze_or_not,model,args):
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD(trainable_vars,
                                     lr = args.lr,
-                                    momentum = args.momentum,
+                                    momentum = args.momentum_or_beta1,
                                     weight_decay = args.weight_decay,
                                     nesterov = args.nesterov)
         elif args.opt_type == 'adam':
             optimizer = torch.optim.Adam(trainable_vars, 
                                         lr=args.lr, 
-                                        betas=(args.momentum, 0.999),
+                                        betas=(args.momentum_or_beta1, 0.999),
                                         eps=1e-08, 
                                         weight_decay=args.weight_decay,
                                         amsgrad=False)
@@ -152,21 +163,22 @@ def optimizer_settings(freeze_or_not,model,args):
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD(trainable_vars,
                                     lr = args.lr,
-                                    momentum = args.momentum,
+                                    momentum = args.momentum_or_beta1,
                                     weight_decay = args.weight_decay,
                                     nesterov = args.nesterov)
         elif args.opt_type == 'adam':
             optimizer = torch.optim.Adam(trainable_vars, 
                                         lr=args.lr, 
-                                        betas=(args.momentum, 0.999),
+                                        betas=(args.momentum_or_beta1, 0.999),
                                         eps=1e-08, 
                                         weight_decay=args.weight_decay,
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
 
-    lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.333, patience=5, 
-                                  verbose=True, threshold=1e-4, threshold_mode='rel',
-                                  cooldown=3, min_lr=0, eps=1e-08)
+    # lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.333, patience=5, 
+    #                               verbose=True, threshold=1e-4, threshold_mode='rel',
+    #                               cooldown=3, min_lr=0, eps=1e-08)
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.step, gamma=0.333, last_epoch=-1)
 
     return optimizer,lr_scheduler
 
@@ -214,6 +226,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
             print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)   
         begin = time.time()
 
+        # for short test
         # if each_batch == 5:
         #     break
     #weight_con = Online_weight_control(loss_for_control)
@@ -262,6 +275,9 @@ def val_one_epoch(img_input,model,epoch,args):
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
                 loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+            
+            if each_batch % args.print_fre == 0:
+                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
                 
         #     elif args.val_type == 1:
         #         output, saved_for_loss = model(img)
@@ -340,7 +356,7 @@ def main():
     print("start normal training") 
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
     
-
+    lr = args.lr
     for epoch in range(args.epochs):
         loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
