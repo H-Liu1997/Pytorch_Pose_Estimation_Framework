@@ -16,7 +16,7 @@ def cli(parser):
     group = parser.add_argument_group('network')
     group.add_argument('--heatmap_num', default=19, type=int)
     group.add_argument('--paf_num', default=38, type=int)
-    group.add_argument('--paf_stage', default=4, type=int)
+    group.add_argument('--paf_stage', default=5, type=int)
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
     
 class CMUnetwork(nn.Module):

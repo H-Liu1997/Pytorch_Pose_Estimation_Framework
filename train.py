@@ -13,10 +13,12 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import torch.utils.model_zoo as model_zoo
 import numpy as np
+#from torch.utils.tensorboard import SummaryWriter
 from tensorboardX import SummaryWriter
+#from torchsummary import summary
 
 from .datasets import mainloader
-from .network.openpose import CMUnet, CMUnet_loss
+from .network.openpose import CMU_BN_net, CMUnet_loss
 from . import evaluate
 
 
@@ -31,7 +33,7 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    CMUnet.cli(parser)
+    CMU_BN_net.cli(parser)
     CMUnet_loss.cli(parser)
     mainloader.train_cli(parser)
     evaluate.val_cli(parser)
@@ -41,26 +43,29 @@ def cli():
     parser.add_argument('--freeze_base', default=0, type=int,
                         help='number of epochs to train with frozen base')
     parser.add_argument('--epochs', default=200, type=int)
-    parser.add_argument('--gpu', default=[0,1], type=list, help="gpu number")
-    parser.add_argument('--per_batch_size', default= 5, type=int,
+    parser.add_argument('--gpu', default=[0], type=list, help="gpu number")
+    parser.add_argument('--per_batch_size', default= 10, type=int,
                         help='batch size per gpu')
     
     # optimizer
-    parser.add_argument('-opt_type', default='sgd', type=str,help='sgd or adam')
-    parser.add_argument('--auto_lr', default=True, type=bool)
-    parser.add_argument('--lr', default=4e-5, type=float)
-    parser.add_argument('--weight_decay', default=5e-4, type=float)
+    parser.add_argument('-opt_type', default='adam', type=str,help='sgd or adam')
+    parser.add_argument('--auto_lr_tpye', default='val_auto', type=str)
+    parser.add_argument('--factor', default=0.1, type=float)
+    parser.add_argument('--patience', default=3, type=int)
+    parser.add_argument('--lr', default=1e-4, type=float)
+    parser.add_argument('--weight_decay', default=0, type=float)
     parser.add_argument('--step', default=[22,44], type=list)
     parser.add_argument('--momentum_or_beta1', default=0.9, type=float)
     parser.add_argument('--beta2', default=0.999, type=float)
     parser.add_argument("--epr", default=1e-8, type=float)
-    parser.add_argument('--nesterov', default=False, type=bool)
+    parser.add_argument('--nesterov', default=True, type=bool)
 
     # others
-    parser.add_argument('--name', default='op_sameori', type=str)
+    parser.add_argument('--name', default='op_big_lr', type=str)
     parser.add_argument('--log_path_base', default='./Pytorch_Pose_Estimation_Framework/ForSave/log/')
-    parser.add_argument('--weight_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--print_fre', default=10, type=int)
+    parser.add_argument('--weight_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
+    parser.add_argument('--weight_old_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
+    parser.add_argument('--print_fre', default=5, type=int)
     parser.add_argument('--val_type', default=0, type=int)
    
     args = parser.parse_args()
@@ -70,7 +75,6 @@ def save_config(log_path,weight_path,batch_size,args):
     ''' save the parameters to a txt file in the logpath '''
     
     args.batch_size = batch_size
-    args.weight_load_dir = './Pytorch_Pose_Estimation_Framework/ForSave/weight/op_test1'
     try:
         os.mkdir(log_path)
         os.mkdir(weight_path)
@@ -89,6 +93,12 @@ def save_config(log_path,weight_path,batch_size,args):
             f.write(str1)
             str1 = 'nesterov: ' +  str(args.nesterov) + '\n'
             f.write(str1)
+            str1 = 'auto_lr_tpye: ' +  str(args.auto_lr_tpye) + '\n'
+            f.write(str1)
+            str1 = 'patience: ' +  str(args.patience) + '\n'
+            f.write(str1)
+            str1 = 'factor: ' +  str(args.factor) + '\n'
+            f.write(str1)
             str1 = 'batch size: ' +  str(batch_size) + '\n'
             f.write(str1)
             str1 = 'step: ' +  str(args.step[0]) +" "+  str(args.step[1]) + '\n'
@@ -105,15 +115,16 @@ def load_weghts(model,args):
 
     # load weight files
     try:
-        state_dict = torch.load(args.weight_load_dir)
+        state_dict = torch.load(args.weight_old_dir)
         print("load old weight")
     except:
-        state_dict = model_zoo.load_url(args.weight_vgg19, model_dir=args.weight_load_dir)
+        print("no old weight to load")
+        state_dict = model_zoo.load_url(args.weight_vgg19, model_dir=args.weight_dir)
         vgg_keys = state_dict.keys()
         weight_load_dir = {}
         for i in range(20):
             weight_load_dir[list(model.state_dict().keys())[i]
-                     ] = state_dict[list(vgg_keys)[i]]
+                    ] = state_dict[list(vgg_keys)[i]]
         state_dict = model.state_dict()
         state_dict.update(weight_load_dir)  
         print("load imgnet pretrain weight")
@@ -129,6 +140,7 @@ def load_weghts(model,args):
         model.load_state_dict(new_state_dict)
 
     print("init network success")
+
 
 def optimizer_settings(freeze_or_not,model,args):
     ''' choose different optimizer method here 
@@ -174,13 +186,16 @@ def optimizer_settings(freeze_or_not,model,args):
                                         weight_decay=args.weight_decay,
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
-
-    # lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.333, patience=5, 
-    #                               verbose=True, threshold=1e-4, threshold_mode='rel',
-    #                               cooldown=3, min_lr=0, eps=1e-08)
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.step, gamma=0.333, last_epoch=-1)
-
+    
+    if args.auto_lr_tpye == 'val_auto':
+        lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, 
+                                    verbose=True, threshold=1e-4, threshold_mode='rel',
+                                    cooldown=3, min_lr=0, eps=1e-08)
+    else: 
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.step, gamma=args.factor, last_epoch=-1)
+    
     return optimizer,lr_scheduler
+
 
 def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     ''' Finish 1.train for one epoch
@@ -192,6 +207,8 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     loss_train = 0
     model.train()
     length = len(img_input)
+    print("iteration:",length)
+    train_time = time.time()
     begin = time.time()
     
     # loss control
@@ -223,7 +240,8 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)   
+            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
         # for short test
@@ -231,6 +249,8 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         #     break
     #weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
+    train_time = time.time() - train_time
+    print('total val time:',train_time)
     return loss_train
 
 def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
@@ -275,10 +295,13 @@ def val_one_epoch(img_input,model,epoch,args):
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
                 loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+                loss_val += loss['final']
+        
             
             if each_batch % args.print_fre == 0:
                 print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
-                
+            begin = time.time()
+        loss_val /= len(img_input)        
         #     elif args.val_type == 1:
         #         output, saved_for_loss = model(img)
         #         json_output = Callfromtrain(output,json_output)
@@ -321,14 +344,16 @@ def main():
     val_loader = mainloader.train_factory('val',args)
 
     # network portion
-    model = CMUnet.CMUnetwork(args)
+    model = CMU_BN_net.CMUnetwork(args)
     load_weghts(model,args)
     # multi_gpu and cuda
     model = torch.nn.DataParallel(model,args.gpu).cuda()
 
     # val loss boundary and tensorboard path
     val_loss_min = np.inf
+    lr = args.lr
     writer = SummaryWriter(log_path)
+    #summary(model,(3,368,368))
     
     # start freeze training
     if args.freeze_base != 0:
@@ -339,9 +364,10 @@ def main():
             loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
             loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
             # save to tensorboard
-            writer.add_scalars('train_val_loss', {'train loss': loss_train,
+            writer.add_scalars('train_val_loss_epoch', {'train loss': loss_train,
                                                   'val loss': loss_val}, epoch)
-            writer.add_scalar('accuracy', accuracy_val, epoch)
+            writer.add_scalar('accuracy_epoch', accuracy_val, epoch)
+            writer.add_scalar('lr_epoch', lr, epoch)
 
             # val_weight is best val_loss weights
             # save train_weight is for continue training
@@ -356,7 +382,7 @@ def main():
     print("start normal training") 
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
     
-    lr = args.lr
+    
     for epoch in range(args.epochs):
         loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
@@ -370,6 +396,7 @@ def main():
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                 'val loss': loss_val}, epoch)
         writer.add_scalar('accuracy', accuracy_val, epoch)
+        writer.add_scalar('lr_epoch', lr, epoch)
 
         # val_weight is best val_loss weights
         # save train_weight is for continue training
@@ -380,10 +407,9 @@ def main():
             val_loss_min = min(val_loss_min,loss_val)
             torch.save(model.state_dict(),save_val_path)
         else:counter+=1
-        if counter == 5:
-            counter = 1
-            lr = args.lr * 0.1
-        print('current lr:',lr)
+        if counter == args.patience:
+            counter =0
+            lr = args.lr * args.factor
         torch.save(model.state_dict(),save_train_path)
 
     writer.close()
