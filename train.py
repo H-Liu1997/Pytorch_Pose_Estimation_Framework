@@ -326,9 +326,27 @@ def val_one_epoch(img_input,model,epoch,args):
     print('total val time:',val_time)
     return loss_val, accuracy
 
-def Online_weight_control(loss_dict):
-    pass
-    return loss_dict
+def Online_weight_control(loss_list,args):
+    loss_paf_ = torch.zeros([args.paf_num])
+    loss_heat_ = torch.zeros([args.heatmap_num])
+    for i in range(args.paf_stage):
+        for j in range(args.paf_num):
+            loss_paf_[j] += loss_list[i][j]
+    for i in range(6-args.paf_stage):
+        for j in range(args.heatmap_num):
+            loss_heat_[j] += loss_list[i][j]
+    print('losspaf',loss_paf_)
+    print('lossheat',loss_heat_)
+    ratio_paf = torch.min(loss_paf_)
+    ratio_heat = torch.min(loss_heat_)
+    loss_paf_ /= ratio_paf
+    loss_heat_ /= ratio_heat
+    print('losspaf_after',loss_paf_)
+    print('lossheat_after',loss_heat_)
+    weight_con = torch.cat([loss_paf_,loss_heat_],0)
+    print('weicon',weight_con)
+    
+    return weight_con
 
 def main():
 
