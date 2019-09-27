@@ -43,22 +43,23 @@ def cli():
     parser.add_argument('--freeze_base', default=0, type=int,
                         help='number of epochs to train with frozen base')
     parser.add_argument('--epochs', default=200, type=int)
-    parser.add_argument('--gpu', default=[0], type=list, help="gpu number")
-    parser.add_argument('--per_batch_size', default= 10, type=int,
+    parser.add_argument('--gpu', default=[0,1,2,3], type=list, help="gpu number")
+    parser.add_argument('--per_batch_size', default= 2, type=int,
                         help='batch size per gpu')
     
     # optimizer
-    parser.add_argument('-opt_type', default='adam', type=str,help='sgd or adam')
-    parser.add_argument('--auto_lr_tpye', default='val_auto', type=str)
+    parser.add_argument('-opt_type', default='sgd', type=str,help='sgd or adam')
+    parser.add_argument('--auto_lr', default=True, type=bool)
+    parser.add_argument('--auto_lr_tpye', default='other', type=str)
     parser.add_argument('--factor', default=0.1, type=float)
     parser.add_argument('--patience', default=3, type=int)
-    parser.add_argument('--lr', default=1e-4, type=float)
+    parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--weight_decay', default=0, type=float)
-    parser.add_argument('--step', default=[22,44], type=list)
-    parser.add_argument('--momentum_or_beta1', default=0.9, type=float)
+    parser.add_argument('--step', default=[60,80], type=list)
+    parser.add_argument('--momentum_or_beta1', default=0.95, type=float)
     parser.add_argument('--beta2', default=0.999, type=float)
     parser.add_argument("--epr", default=1e-8, type=float)
-    parser.add_argument('--nesterov', default=True, type=bool)
+    parser.add_argument('--nesterov', default=False, type=bool)
 
     # others
     parser.add_argument('--name', default='op_big_lr', type=str)
@@ -70,6 +71,7 @@ def cli():
    
     args = parser.parse_args()
     return args
+
 
 def save_config(log_path,weight_path,batch_size,args):
     ''' save the parameters to a txt file in the logpath '''
@@ -253,6 +255,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     print('total val time:',train_time)
     return loss_train
 
+
 def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     ''' some public print information for both train and val '''    
     str_print = "Epoch: [{0}][{1}/{2}\t]".format(epoch,current_step,len_of_input)
@@ -266,6 +269,7 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     str_print += "loss5: {loss:.4f}  ".format(loss = loss['stage_5'])
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
+
 
 def val_one_epoch(img_input,model,epoch,args):
     ''' val_type: 0.only calculate val_loss
@@ -326,6 +330,7 @@ def val_one_epoch(img_input,model,epoch,args):
     print('total val time:',val_time)
     return loss_val, accuracy
 
+
 def Online_weight_control(loss_list,args):
     loss_paf_ = torch.zeros([args.paf_num])
     loss_heat_ = torch.zeros([args.heatmap_num])
@@ -347,6 +352,7 @@ def Online_weight_control(loss_list,args):
     print('weicon',weight_con)
     
     return weight_con
+
 
 def main():
 
