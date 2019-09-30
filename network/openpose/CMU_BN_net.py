@@ -63,7 +63,6 @@ class CMUnetwork(nn.Module):
 
         return (output_4,output_6), saved_for_loss
 
-
 class dense_block(nn.Module):
     '''1. basic dense block of the new openpose
        2. add conv1,2,3 output together to output
@@ -155,8 +154,6 @@ class dense_block_0(nn.Module):
                 if m.bias is not None:
                     init.constant_(m.bias, 0.0)
     
-    
-        
 class state_n_block(nn.Module):
     ''' 1. for state 1 in_dim = 128
         2. for other state depend on the paf and heatmap channels
@@ -232,7 +229,6 @@ class state_1_block(nn.Module):
         init.constant_(self.conv1[0].bias, 0.0)
         init.normal_(self.conv2.weight, std =0.01)
         init.constant_(self.conv2.bias, 0.0)
-
 
 class VGG_block(nn.Module):
     ''' 1. default have the bias

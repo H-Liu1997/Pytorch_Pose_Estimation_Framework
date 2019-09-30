@@ -18,7 +18,7 @@ from tensorboardX import SummaryWriter
 #from torchsummary import summary
 
 from .datasets import mainloader
-from .network.openpose import CMU_BN_net, CMUnet_loss
+from .network.openpose import CMU_BN_net, CMUnet_loss,CMU_old
 from . import evaluate
 
 
@@ -44,18 +44,18 @@ def cli():
                         help='number of epochs to train with frozen base')
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--gpu', default=[0,1,2,3], type=list, help="gpu number")
-    parser.add_argument('--per_batch_size', default= 2, type=int,
+    parser.add_argument('--per_batch_size', default= 8, type=int,
                         help='batch size per gpu')
     
     # optimizer
-    parser.add_argument('-opt_type', default='sgd', type=str,help='sgd or adam')
+    parser.add_argument('-opt_type', default='adam', type=str,help='sgd or adam')
     parser.add_argument('--auto_lr', default=True, type=bool)
     parser.add_argument('--auto_lr_tpye', default='other', type=str)
     parser.add_argument('--factor', default=0.1, type=float)
     parser.add_argument('--patience', default=3, type=int)
-    parser.add_argument('--lr', default=1e-3, type=float)
+    parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--weight_decay', default=0, type=float)
-    parser.add_argument('--step', default=[60,80], type=list)
+    parser.add_argument('--step', default=[80,100], type=list)
     parser.add_argument('--momentum_or_beta1', default=0.95, type=float)
     parser.add_argument('--beta2', default=0.999, type=float)
     parser.add_argument("--epr", default=1e-8, type=float)
@@ -227,7 +227,8 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         target_paf = target_paf.cuda()
     
         _, saved_for_loss = model(img)
-        loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+        #loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+        loss = CMUnet_loss.get_old_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
 
         # for i in range(args.paf_stage):
         #     for j in range(args.paf_num):
@@ -242,7 +243,8 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
@@ -267,6 +269,20 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     str_print += "loss3: {loss:.4f}  ".format(loss = loss['stage_3'])
     str_print += "loss4: {loss:.4f}  ".format(loss = loss['stage_4'])
     str_print += "loss5: {loss:.4f}  ".format(loss = loss['stage_5'])
+    str_print += "data_time: {time:.3f}".format(time = datatime)
+    print(str_print)
+
+def print_to_terminal_old(epoch,current_step,len_of_input,loss,loss_avg,datatime):
+    ''' some public print information for both train and val '''    
+    str_print = "Epoch: [{0}][{1}/{2}\t]".format(epoch,current_step,len_of_input)
+    str_print += "Total_loss: {loss:.4f}({loss_avg:.4f})".format(loss = loss['final'],
+                            loss_avg = loss_avg/(current_step+1))
+    str_print += "loss1_0: {loss:.4f}  ".format(loss = loss['stage_1_0'])
+    str_print += "loss1_1: {loss:.4f}  ".format(loss = loss['stage_1_1'])
+    str_print += "loss1_5: {loss:.4f}  ".format(loss = loss['stage_1_5'])
+    str_print += "loss2_0: {loss:.4f}  ".format(loss = loss['stage_2_0'])
+    str_print += "loss2_1: {loss:.4f}  ".format(loss = loss['stage_2_1'])
+    str_print += "loss2_5: {loss:.4f}  ".format(loss = loss['stage_2_5'])
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
 
@@ -303,7 +319,8 @@ def val_one_epoch(img_input,model,epoch,args):
         
             
             if each_batch % args.print_fre == 0:
-                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+                print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
+                #print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
             begin = time.time()
         loss_val /= len(img_input)        
         #     elif args.val_type == 1:
@@ -368,7 +385,8 @@ def main():
     val_loader = mainloader.train_factory('val',args)
 
     # network portion
-    model = CMU_BN_net.CMUnetwork(args)
+    modle = CMU_old.CMUnetwork(args)
+    #model = CMU_BN_net.CMUnetwork(args)
     load_weghts(model,args)
     # multi_gpu and cuda
     model = torch.nn.DataParallel(model,args.gpu).cuda()

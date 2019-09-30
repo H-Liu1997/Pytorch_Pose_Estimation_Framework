@@ -1,7 +1,22 @@
+# ------------------------------------------------------------------------------
+# The old OpenPose Pytorch Implementation 
+# Written by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
 import torch.nn as nn
 import torch
+from torch.nn import init
 
+def cli(parser):
+    ''' network config
+        1. paf and heatmap nums
+        2. weight path
+    '''
 
+    group = parser.add_argument_group('network')
+    group.add_argument('--heatmap_num', default=19, type=int)
+    group.add_argument('--paf_num', default=38, type=int)
+    #group.add_argument('--paf_stage', default=4, type=int)
+    group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
 
 class CMUnetwork(nn.module):
     '''
@@ -65,20 +80,15 @@ class CMUnetwork(nn.module):
         save_for_loss.append(output_6_1)
         save_for_loss.append(output_6_2)
 
-        return (output_6_1,output_6_2),save_for_loss
-
-        
-        
-         
-
+        return (output_6_1,output_6_2),save_for_loss                                                                                                                                         
 
 class conv(nn.module):
     '''
     n*n conv with relu
     '''
     def __init__(self,in_dim,out_dim,kernal_size,stride,padding):
-        super(__init__,conv)
-        self.con_layer = nn.Conv2D(in_dim,out_dim,kernal_size,stride,padding)
+        super(conv,self).__init__()
+        self.con_layer = nn.Conv2d(in_dim,out_dim,kernal_size,stride,padding)
         self.relu = nn.ReLu(inplace=True)
         self.initi()
     
@@ -86,9 +96,11 @@ class conv(nn.module):
         output = self.con_layer(input_)
         output = self.relu(output)
         return output
-    
     def initi(self):
-        pass
+        init.kaiming_normal_(self.con_layer.weight, a=0, mode='fan_in', nonlinearity='relu')
+        #init.normal_(self.con_layer.weight, std=0.01)
+        if self.con_layer.bias is not None:  
+            init.constant_(self.con_layer.bias, 0.0)
 
 
 
@@ -98,12 +110,12 @@ class stage_1_block(nn.module):
     last layer don't have relu
     '''
     def __init__(self,input_dim,output_dim):
-        super(__init__, stage_1_block)
-        self.conv1 = conv(input_dim,128,5,1,2)
-        self.conv2 = conv(128,128,5,1,2)
-        self.conv3 = conv(128,128,5,1,2)
-        self.conv4 = conv(128,256,1,1,0)
-        self.conv5 = nn.Conv2D(256,output_dim,1,1,0)
+        super(stage_1_block,self).__init__()
+        self.conv1 = conv(input_dim,128,3,1,1)
+        self.conv2 = conv(128,128,3,1,1)
+        self.conv3 = conv(128,128,3,1,1)
+        self.conv4 = conv(128,512,1,1,0)
+        self.conv5 = nn.Conv2d(512,output_dim,1,1,0)
         
         self.initi()
     
@@ -116,7 +128,10 @@ class stage_1_block(nn.module):
         return output
 
     def initi(self):
-        pass
+        init.kaiming_normal_(self.self.conv5.weight, a=0, mode='fan_in', nonlinearity='relu')
+        #init.normal_(self.conv5.weight, std=0.01)
+        if self.conv5.bias is not None:  
+            init.constant_(self.conv5.bias, 0.0)
 
 
 class stage_n_block(nn.module):
@@ -125,14 +140,14 @@ class stage_n_block(nn.module):
     last layer don't have relu
     '''
     def __init__(self,input_dim,output_dim):
-        super(__init__, stage_1_block)
+        super(stage_n_block,self).__init__()
         self.conv1 = conv(input_dim,128,7,1,3)
         self.conv2 = conv(128,128,7,1,3)
         self.conv3 = conv(128,128,7,1,3)
         self.conv4 = conv(128,128,7,1,3)
         self.conv5 = conv(128,128,7,1,3)
-        self.conv6 = conv(128,512,1,1,0)
-        self.conv7 = nn.Conv2D(512,output_dim,1,1,0)
+        self.conv6 = conv(128,128,1,1,0)
+        self.conv7 = nn.Conv2d(128,output_dim,1,1,0)
         
         self.initi()
     
@@ -147,7 +162,10 @@ class stage_n_block(nn.module):
         return output
 
     def initi(self):
-        pass
+        init.kaiming_normal_(self.self.conv7.weight, a=0, mode='fan_in', nonlinearity='relu')
+        #init.normal_(self.conv7.weight, std=0.01)
+        if self.conv7.bias is not None:  
+            init.constant_(self.conv7.bias, 0.0)
 
 
 
@@ -157,18 +175,18 @@ class VGG_19(nn.module):
     11 and 12 by CMU
     '''
     def __init__(self,input_dim):
-        super(__init__, VGG_19)
+        super(VGG_19,self).__init__()
         self.conv1_1 = conv(input_dim,64,3,1,1)
         self.conv1_2 = conv(64,64,3,1,1)
-        self.pooling_1 = nn.MaxPool2D(2,2,0)
+        self.pooling_1 = nn.MaxPool2d(2,2,0)
         self.conv2_1 = conv(64,128,3,1,1)
         self.conv2_2 = conv(128,128,3,1,1)
-        self.pooling_2 = nn.MaxPool2D(2,2,0)
+        self.pooling_2 = nn.MaxPool2d(2,2,0)
         self.conv3_1 = conv(128,256,3,1,1)
         self.conv3_2 = conv(256,256,3,1,1)
         self.conv3_3 = conv(256,256,3,1,1)
         self.conv3_4 = conv(256,256,3,1,1)
-        self.pooling_3 = nn.MaxPool2D(2,2,0)
+        self.pooling_3 = nn.MaxPool2d(2,2,0)
         self.conv4_1 = conv(256,512,3,1,1)
         self.conv4_2 = conv(512,512,3,1,1)
         self.conv4_3 = conv(512,256,3,1,1)
