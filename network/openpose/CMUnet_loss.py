@@ -13,7 +13,7 @@ def cli(parser):
 
 
 def get_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
-    ''' input： the output of CMU net
+    '''input： the output of CMU net
                 the target img
                 the mask for unanno-file
                 config control the weight of loss

@@ -44,7 +44,7 @@ def cli():
                         help='number of epochs to train with frozen base')
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--gpu', default=[0,1], type=list, help="gpu number")
-    parser.add_argument('--per_batch_size', default= 8, type=int,
+    parser.add_argument('--per_batch_size', default= 5, type=int,
                         help='batch size per gpu')
     
     # optimizer
@@ -385,7 +385,7 @@ def main():
     val_loader = mainloader.train_factory('val',args)
 
     # network portion
-    modle = CMU_old.CMUnetwork(args)
+    model = CMU_old.CMUnetwork(args)
     #model = CMU_BN_net.CMUnetwork(args)
     load_weghts(model,args)
     # multi_gpu and cuda

@@ -18,29 +18,30 @@ def cli(parser):
     #group.add_argument('--paf_stage', default=4, type=int)
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
 
-class CMUnetwork(nn.module):
+class CMUnetwork(nn.Module):
     '''
     '''
     def __init__(self,args):
+        super(CMUnetwork,self).__init__()
         self.block_0 = VGG_19(3)
         self.ch_sum = 128+args.paf_num+args.heatmap_num
         self.block_1_1 = stage_1_block(128,args.paf_num)
         self.block_1_2 = stage_1_block(128,args.heatmap_num) 
 
-        self.block_2_1 = stage_n_block(128+self.ch_sum,args.paf_num)
-        self.block_2_2 = stage_n_block(128+self.ch_sum,args.heatmap_num)
+        self.block_2_1 = stage_n_block(self.ch_sum,args.paf_num)
+        self.block_2_2 = stage_n_block(self.ch_sum,args.heatmap_num)
 
-        self.block_3_1 = stage_n_block(128+self.ch_sum,args.paf_num)
-        self.block_3_2 = stage_n_block(128+self.ch_sum,args.heatmap_num)
+        self.block_3_1 = stage_n_block(self.ch_sum,args.paf_num)
+        self.block_3_2 = stage_n_block(self.ch_sum,args.heatmap_num)
 
-        self.block_4_1 = stage_n_block(128+self.ch_sum,args.paf_num)
-        self.block_4_2 = stage_n_block(128+self.ch_sum,args.heatmap_num)
+        self.block_4_1 = stage_n_block(self.ch_sum,args.paf_num)
+        self.block_4_2 = stage_n_block(self.ch_sum,args.heatmap_num)
 
-        self.block_5_1 = stage_n_block(128+self.ch_sum,args.paf_num)
-        self.block_5_2 = stage_n_block(128+self.ch_sum,args.heatmap_num)
+        self.block_5_1 = stage_n_block(self.ch_sum,args.paf_num)
+        self.block_5_2 = stage_n_block(self.ch_sum,args.heatmap_num)
 
-        self.block_6_1 = stage_n_block(128+self.ch_sum,args.paf_num)
-        self.block_6_2 = stage_n_block(128+self.ch_sum,args.heatmap_num)
+        self.block_6_1 = stage_n_block(self.ch_sum,args.paf_num)
+        self.block_6_2 = stage_n_block(self.ch_sum,args.heatmap_num)
 
     def forward(self,input_):
         save_for_loss =[]
@@ -49,8 +50,10 @@ class CMUnetwork(nn.module):
         output_1_2 = self.block_1_2(output_0)
         save_for_loss.append(output_1_1)
         save_for_loss.append(output_1_2)
+        #print('1-2:',output_1_1.size())
+        #print('1-1:',output_1_2.size())
         output_1_sum = torch.cat([output_0,output_1_1,output_1_2],1)
-        
+        #print('1-sum:',output_1_sum.size())
         output_2_1 = self.block_2_1(output_1_sum)
         output_2_2 = self.block_2_2(output_1_sum)
         save_for_loss.append(output_2_1)
@@ -82,14 +85,14 @@ class CMUnetwork(nn.module):
 
         return (output_6_1,output_6_2),save_for_loss                                                                                                                                         
 
-class conv(nn.module):
+class conv(nn.Module):
     '''
     n*n conv with relu
     '''
     def __init__(self,in_dim,out_dim,kernal_size,stride,padding):
         super(conv,self).__init__()
         self.con_layer = nn.Conv2d(in_dim,out_dim,kernal_size,stride,padding)
-        self.relu = nn.ReLu(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.initi()
     
     def forward(self,input_):
@@ -104,7 +107,7 @@ class conv(nn.module):
 
 
 
-class stage_1_block(nn.module):
+class stage_1_block(nn.Module):
     '''
     stage 1 only 5 layers and the kernal size is 5
     last layer don't have relu
@@ -128,13 +131,13 @@ class stage_1_block(nn.module):
         return output
 
     def initi(self):
-        init.kaiming_normal_(self.self.conv5.weight, a=0, mode='fan_in', nonlinearity='relu')
+        init.kaiming_normal_(self.conv5.weight, a=0, mode='fan_in', nonlinearity='relu')
         #init.normal_(self.conv5.weight, std=0.01)
         if self.conv5.bias is not None:  
             init.constant_(self.conv5.bias, 0.0)
 
 
-class stage_n_block(nn.module):
+class stage_n_block(nn.Module):
     '''
     stage n only 7 layers and the kernal size is 7
     last layer don't have relu
@@ -162,14 +165,14 @@ class stage_n_block(nn.module):
         return output
 
     def initi(self):
-        init.kaiming_normal_(self.self.conv7.weight, a=0, mode='fan_in', nonlinearity='relu')
+        init.kaiming_normal_(self.conv7.weight, a=0, mode='fan_in', nonlinearity='relu')
         #init.normal_(self.conv7.weight, std=0.01)
         if self.conv7.bias is not None:  
             init.constant_(self.conv7.bias, 0.0)
 
 
 
-class VGG_19(nn.module):
+class VGG_19(nn.Module):
     '''
     VGG_19 first 10 layers
     11 and 12 by CMU
