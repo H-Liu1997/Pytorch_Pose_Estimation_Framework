@@ -43,7 +43,7 @@ def cli():
     parser.add_argument('--freeze_base', default=0, type=int,
                         help='number of epochs to train with frozen base')
     parser.add_argument('--epochs', default=200, type=int)
-    parser.add_argument('--gpu', default=[0,1,2,3], type=list, help="gpu number")
+    parser.add_argument('--gpu', default=[0,1], type=list, help="gpu number")
     parser.add_argument('--per_batch_size', default= 8, type=int,
                         help='batch size per gpu')
     
