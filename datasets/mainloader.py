@@ -37,7 +37,7 @@ def train_cli(parser):
     group.add_argument('--square_edge', default=368, type=int,
                         help='square edge of input images')
     group.add_argument('--no_augmentation', dest='augmentation',
-                        default=True, action='store_false',
+                        default=False, action='store_false',
                         help='do not apply data augmentation')
                           
 class COCOKeypoints(Dataset):
@@ -73,6 +73,11 @@ class COCOKeypoints(Dataset):
         self.log = logging.getLogger(self.__class__.__name__)
 
     def filter_for_keypoint_annotations(self):
+        '''
+        filter for the:
+        1. no keypoints annotations
+        2. keypoints annotatios visiable are all zero
+        '''
         print('filter for keypoint annotations ...')
         def has_keypoint_annotation(image_id):
             ann_ids = self.coco.getAnnIds(imgIds=image_id, catIds=self.cat_ids)
