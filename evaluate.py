@@ -1,12 +1,12 @@
-# The evaluate portion of pose estimation
+# ------------------------------------------------------------------------------
+# The evaluate portion of pose estimation 
 # Some tools is from coco official
-# __author__ = 'Haiyang Liu'
+# Written by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
 
 import json
 from .EvalTools.decoder import post
-#from .netdebug import rtpose_vgg
 from .EvalTools import eval_trans
-
 
 
 def val_cli(parser):
@@ -67,6 +67,7 @@ def get_mini_batch(multi_size,input_img):
         real_shape.append((real_shape_tem[0],real_shape_tem[1]))
     return val_batch_numpy,useful_shape,real_shape
 
+
 def Get_Multiple_outputs(input_img,model,Scale,Filp_or_not,heatmap_num,paf_num,args):
     base_size=368
     pooling_factor=8
@@ -109,6 +110,7 @@ def Get_Multiple_outputs(input_img,model,Scale,Filp_or_not,heatmap_num,paf_num,a
         pass
     return average_paf,average_heatmap
 
+
 def append_result(image_id, person_to_joint_assoc, joint_list, outputs):
     """Build the outputs to be evaluated
     :param image_id: int, the id of the current image
@@ -149,6 +151,7 @@ def append_result(image_id, person_to_joint_assoc, joint_list, outputs):
         #print(one_result)
         outputs.append(one_result)
 
+
 def eval_coco(outputs, args, imgIds):
     from pycocotools.cocoeval import COCOeval
     """Evaluate images on Coco test set
@@ -175,9 +178,6 @@ def eval_coco(outputs, args, imgIds):
     return cocoEval.stats[0]
 
 
-
-    
-
 if __name__ == "__main__":
     
     import cv2
@@ -187,21 +187,22 @@ if __name__ == "__main__":
     import numpy as np
     from pycocotools.coco import COCO
     from collections import OrderedDict
-    from .network.openpose import CMUnet 
+    from .network.openpose import CMUnet,CMU_old 
     
     #config parameters
+    print("remember to check your forward return value of your new network")
     parser = argparse.ArgumentParser(description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--scale',default=[1],type=list)
     parser.add_argument('--heatmap_num',default=19,type=int)
     parser.add_argument('--paf_num',default=38,type=int)
-    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_03.pth",
+    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_76.pth",
                         type=str)
     parser.add_argument('--eval_dir',default="/home/ikenaga/Public/coco_dataset/images/val2017",type=str)
     parser.add_argument('--ann_dir',default="/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_val2017.json",type=str)
     parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
                         type=str)
-    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/results_np.json",
+    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/val_76_old.json",
                         type=str)
     parser.add_argument('--thre1', default=0.1, type=float)
     parser.add_argument('--thre2', default=0.05, type=float)
@@ -214,26 +215,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     outputs = []
-    # #for debug
-    # state_dict = torch.load(args.weight_for_eval)
-    # # model_dict = rtpose_vgg_cnn.get_model(trunk='vgg19')
-    # # model = rtpose_vgg_cnn.Model_Total(model_dict,1,1)
-    # model = rtpose_vgg.get_model(trunk='vgg19')
-
-    # model = torch.nn.DataParallel(model).cuda()
-    
-    # # from collections import OrderedDict
-    # # new_state_dict = OrderedDict()
-    # # for k, v in state_dict.items():
-    # #     name = "module." + k[:] # remove `module.`
-    # #     new_state_dict[name] = v
-    # model.load_state_dict(state_dict)
-    # model.eval()
-    # model.float()
-    # model = model.cuda()
-
     #load model
-    model = CMUnet.CMUnetwork(args)
+    model = CMU_old.CMUnetwork(args)
     state_dict = torch.load(args.weight_for_eval)
     try:
         model.load_state_dict(state_dict)
