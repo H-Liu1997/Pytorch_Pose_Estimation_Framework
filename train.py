@@ -13,36 +13,33 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import torch.utils.model_zoo as model_zoo
 import numpy as np
-#from torch.utils.tensorboard import SummaryWriter
 from tensorboardX import SummaryWriter
-#from torchsummary import summary
 
 from .datasets import mainloader
 from .network.openpose import CMU_BN_net, CMUnet_loss,CMU_old
 from . import evaluate
 
 
-''' load old weight, openpose old model
-'''
-
 def cli():
-    ''' set all parameters '''
-
+    """
+    set all parameters 
+    """
+    print("if you change the network, make sure: 1.change the cli 2.change the net loader 3. change loss in train and val")
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    CMU_BN_net.cli(parser)
+    CMU_old.cli(parser)
     CMUnet_loss.cli(parser)
     mainloader.train_cli(parser)
     evaluate.val_cli(parser)
     
     # trian setting
-    parser.add_argument('--pre_train_epoch', default=1, type=int)
+    parser.add_argument('--pre_train_epoch', default=0, type=int)
     parser.add_argument('--freeze_base', default=0, type=int,
                         help='number of epochs to train with frozen base')
-    parser.add_argument('--epochs', default=200, type=int)
+    parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--gpu', default=[0,1], type=list, help="gpu number")
     parser.add_argument('--per_batch_size', default= 5, type=int,
                         help='batch size per gpu')
@@ -50,13 +47,14 @@ def cli():
     # optimizer
     parser.add_argument('-opt_type', default='adam', type=str,help='sgd or adam')
     parser.add_argument('--auto_lr', default=True, type=bool)
-    parser.add_argument('--auto_lr_tpye', default='other', type=str)
+    parser.add_argument('--auto_lr_tpye', default='milestone', type=str,
+                        help='milestone or auto val')
     parser.add_argument('--factor', default=0.1, type=float)
     parser.add_argument('--patience', default=3, type=int)
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--weight_decay', default=0, type=float)
     parser.add_argument('--step', default=[80,100], type=list)
-    parser.add_argument('--momentum_or_beta1', default=0.95, type=float)
+    parser.add_argument('--momentum_or_beta1', default=0.90, type=float)
     parser.add_argument('--beta2', default=0.999, type=float)
     parser.add_argument("--epr", default=1e-8, type=float)
     parser.add_argument('--nesterov', default=False, type=bool)
@@ -66,6 +64,7 @@ def cli():
     parser.add_argument('--log_path_base', default='./Pytorch_Pose_Estimation_Framework/ForSave/log/')
     parser.add_argument('--weight_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_old_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
+    parser.add_argument('--weight_load_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
     parser.add_argument('--print_fre', default=5, type=int)
     parser.add_argument('--val_type', default=0, type=int)
    
@@ -73,13 +72,17 @@ def cli():
     return args
 
 
-def save_config(log_path,weight_path,batch_size,args):
-    ''' save the parameters to a txt file in the logpath '''
-    
+def save_config(args):
+    ''' 
+    save the parameters to a txt file in the logpath 
+    '''
+    batch_size = len(args.gpu) * args.per_batch_size
+    args.log_path = os.path.join(args.log_path_base,args.name)
+    args.weight_path = os.path.join(args.weight_old_dir,args.name)
     args.batch_size = batch_size
     try:
-        os.mkdir(log_path)
-        os.mkdir(weight_path)
+        os.mkdir(args.log_path)
+        os.mkdir(args.weight_path)
         with open(os.path.join(log_path,"config.txt"),'w') as f:
             str1 = 'name: ' +  str(args.name) + '\n'
             f.write(str1)
@@ -110,14 +113,15 @@ def save_config(log_path,weight_path,batch_size,args):
 
     
 def load_weghts(model,args):
-    ''' load weights for models in the following order
+    ''' 
+    load weights for models in the following order
         1. load old weights and epoch num
         2. load imgnet per train model
     '''
 
     # load weight files
     try:
-        state_dict = torch.load(args.weight_old_dir)
+        state_dict = torch.load(args.weight_load_dir)
         print("load old weight")
     except:
         print("no old weight to load")
@@ -145,9 +149,9 @@ def load_weghts(model,args):
 
 
 def optimizer_settings(freeze_or_not,model,args):
-    ''' choose different optimizer method here 
-    
-        default is SGD with momentum
+    ''' 
+    1. choose different optimizer method here 
+    2. default is SGD with momentum
     '''
 
     if freeze_or_not:
@@ -272,6 +276,7 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
 
+
 def print_to_terminal_old(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     ''' some public print information for both train and val '''    
     str_print = "Epoch: [{0}][{1}/{2}\t]".format(epoch,current_step,len_of_input)
@@ -349,6 +354,8 @@ def val_one_epoch(img_input,model,epoch,args):
 
 
 def Online_weight_control(loss_list,args):
+    '''
+    '''
     loss_paf_ = torch.zeros([args.paf_num])
     loss_heat_ = torch.zeros([args.heatmap_num])
     for i in range(args.paf_stage):
@@ -372,13 +379,9 @@ def Online_weight_control(loss_list,args):
 
 
 def main():
-
-     #load config parameters
+    #load config parameters
     args = cli()
-    batch_size = len(args.gpu) * args.per_batch_size
-    log_path = os.path.join(args.log_path_base,args.name)
-    weight_path = os.path.join(args.weight_dir,args.name)
-    save_config(log_path,weight_path,batch_size,args)
+    save_config(args)
     
     # data portion
     train_loader = mainloader.train_factory('train',args)
@@ -388,14 +391,13 @@ def main():
     model = CMU_old.CMUnetwork(args)
     #model = CMU_BN_net.CMUnetwork(args)
     load_weghts(model,args)
-    # multi_gpu and cuda
+    # multi_gpu and cuda, will occur some bug when inner some function
     model = torch.nn.DataParallel(model,args.gpu).cuda()
 
     # val loss boundary and tensorboard path
     val_loss_min = np.inf
     lr = args.lr
-    writer = SummaryWriter(log_path)
-    #summary(model,(3,368,368))
+    writer = SummaryWriter(args.log_path)
     
     # start freeze training
     if args.freeze_base != 0:
@@ -413,8 +415,8 @@ def main():
 
             # val_weight is best val_loss weights
             # save train_weight is for continue training
-            save_train_path = os.path.join(weight_path,"_train_{}.pth".format(epoch))
-            save_val_path = os.path.join(weight_path,"_val_{}.pth".format(epoch))
+            save_train_path = os.path.join(args.weight_path,"_train_final.pth")
+            save_val_path = os.path.join(args.weight_path,"_val_{}.pth".format(epoch))
             if val_loss_min > loss_val:
                 val_loss_min = min(val_loss_min,loss_val)
                 torch.save(model.state_dict(),save_val_path)
@@ -423,8 +425,6 @@ def main():
     #start normal training
     print("start normal training") 
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
-    
-    
     for epoch in range(args.epochs):
         loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
@@ -442,8 +442,8 @@ def main():
 
         # val_weight is best val_loss weights
         # save train_weight is for continue training
-        save_train_path = os.path.join(weight_path,"_train_{}.pth".format(epoch))
-        save_val_path = os.path.join(weight_path,"_val_{}.pth".format(epoch))
+        save_train_path = os.path.join(args.weight_path,"_train_final.pth")
+        save_val_path = os.path.join(args.weight_path,"_val_{}.pth".format(epoch))
         if val_loss_min > loss_val:
             counter = 0
             val_loss_min = min(val_loss_min,loss_val)
