@@ -18,9 +18,8 @@ def cli():
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    mainloader.train_cli(parser)
-    parser.add_argument('--batch_size', default= 5, type=int,
-                        help='batch size per gpu')
+    mainloader.loader_cli(parser)
+    parser.add_argument('--batch_size',     default= 5,     type=int,   help='batch size per gpu')
  
     args = parser.parse_args()
     return args
