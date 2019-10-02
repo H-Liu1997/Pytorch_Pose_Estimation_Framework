@@ -26,13 +26,13 @@ def loader_cli(parser):
     '''
 
     group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--train_ann_dir', default='/home/liuhaiyang/dataset/COCO/annotations/person_keypoints_train2017.json')
-    group.add_argument('--train_image_dir', default='/home/liuhaiyang/dataset/COCO/images/train2017')
-    group.add_argument('--val_ann_dir', default='/home/liuhaiyang/dataset/COCO/annotations/person_keypoints_val2017.json')
-    group.add_argument('--val_image_dir', default='/home/liuhaiyang/dataset/COCO/images/val2017')
+    group.add_argument('--train_ann_dir', default='./dataset/COCO/annotations/person_keypoints_train2017.json')
+    group.add_argument('--train_image_dir', default='./dataset/COCO/images/train2017')
+    group.add_argument('--val_ann_dir', default='./dataset/COCO/annotations/person_keypoints_val2017.json')
+    group.add_argument('--val_image_dir', default='./dataset/COCO/images/val2017')
     group.add_argument('--n_images', default=None, type=int,
                        help='number of images to sample')
-    group.add_argument('--loader_workers', default=8, type=int,
+    group.add_argument('--loader_workers', default=16, type=int,
                        help='number of workers for data loading')
     group.add_argument('--square_edge', default=368, type=int,
                         help='square edge of input images')

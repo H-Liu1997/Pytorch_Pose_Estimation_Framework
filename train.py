@@ -49,7 +49,7 @@ def cli():
     parser.add_argument('--pre_train',   default=0,      type=int)
     parser.add_argument('--freeze_base', default=0,      type=int,   help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',      default=300,    type=int)
-    parser.add_argument('--per_batch',   default=8,     type=int,   help='batch size per gpu')
+    parser.add_argument('--per_batch',   default=8,      type=int,   help='batch size per gpu')
     parser.add_argument('--gpu',         default=[0,1],  type=list,  help="gpu number")
     
     # optimizer
@@ -70,12 +70,74 @@ def cli():
     parser.add_argument('--log_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',  default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',  default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
+    parser.add_argument('--checkpoint',  default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/test_checkpoint/train_final.pth")
     parser.add_argument('--print_fre',   default=5,      type=int)
     parser.add_argument('--val_type',    default=0,      type=int)
    
     args = parser.parse_args()
     return args
+
+
+def main():
+    #load config parameters
+    args = cli()
+    save_config(args)
+    
+    # data portion
+    train_loader = mainloader.train_factory('train',args)
+    val_loader = mainloader.train_factory('val',args)
+
+    # network portion
+    model = CMU_old.CMUnetwork(args)
+    # multi_gpu and cuda, will occur some bug when inner some function
+    model = torch.nn.DataParallel(model,args.gpu).cuda()
+    optimizer,lr_scheduler = optimizer_settings(False,model,args)
+    start_epoch = load_checkpoints(model,optimizer,lr_scheduler,args)
+    
+    # val loss boundary and tensorboard path
+    val_loss_min = np.inf
+    lr = args.lr
+    writer = SummaryWriter(args.log_path)
+    flag = 0
+    # start freeze training
+    if args.freeze_base != 0 and start_epoch <= args.freeze_base:
+        flag = 1
+        print("start freeze some weight training for epoch {}-{}".format(start_epoch,args.freeze_base)) 
+        optimizer,lr_scheduler = optimizer_settings(True,model,args)
+        
+        for epoch in range(start_epoch,args.freeze_base):
+            loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
+            loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
+            # save to tensorboard
+            writer.add_scalars('train_val_loss_epoch', {'train loss': loss_train,
+                                                  'val loss': loss_val}, epoch)
+            writer.add_scalar('accuracy_epoch', accuracy_val, epoch)
+            writer.add_scalar('lr_epoch', lr, epoch)
+            
+            val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
+    
+    #start normal training
+    print("start normal training")
+    if flag: 
+        optimizer,lr_scheduler = optimizer_settings(False,model,args)
+        start_epoch = args.freeze_base
+    for epoch in range(start_epoch,args.epochs):
+        loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
+        loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
+
+        if args.auto_lr:
+            lr_scheduler.step(loss_val)
+        else:
+            print('no using lr_scheduler')
+
+        # save to tensorboard
+        writer.add_scalars('train_val_loss', {'train loss': loss_train,
+                                                'val loss': loss_val}, epoch)
+        writer.add_scalar('accuracy', accuracy_val, epoch)
+        writer.add_scalar('lr_epoch', lr, epoch)
+
+        val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
+    writer.close()
 
 
 def save_config(args):
@@ -89,7 +151,7 @@ def save_config(args):
     args.batch_size = batch_size
     try:
         os.mkdir(args.log_path)
-        os.mkdir(args.weight_path)
+        print("create log save file")
         with open(os.path.join(log_path,"config.txt"),'w') as f:
             str1 = 'name: ' +  str(args.name) + '\n'
             f.write(str1)
@@ -117,6 +179,11 @@ def save_config(args):
             f.write(str1)
     except:
         print('already exist the log file, please remove them if needed')
+        try:
+            os.mkdir(args.weight_path)
+            print("create weight save file")
+        except:
+            print("already exist weight save file")
 
     
 def load_checkpoints(model,optimizer,lr_scheduler,args):
@@ -175,7 +242,7 @@ def save_checkpoints(model,optimizer,lr_scheduler,epoch,val_loss,val_min,args):
     """
     save the min val loss and every train loss
     """
-    train_path = os.path.join(args.weight_path,'train_final.pth.tar')
+    train_path = os.path.join(args.weight_path,'train_final.pth')
     states = { 
                'model_state': model.state_dict(),
                'epoch': epoch + 1,
@@ -184,7 +251,7 @@ def save_checkpoints(model,optimizer,lr_scheduler,epoch,val_loss,val_min,args):
     }
     torch.save(states,train_path)
     if val_loss<val_min:
-        val_path = os.path.join(args.weight_path,'val_{}.pth.tar'.format(epoch))
+        val_path = os.path.join(args.weight_path,'val_final.pth')
         torch.save(states,val_path)
         val_min = val_loss
     
@@ -205,14 +272,14 @@ def optimizer_settings(freeze_or_not,model,args):
             optimizer = torch.optim.SGD(trainable_vars,
                                     lr = args.lr,
                                     momentum = args.beta1,
-                                    w_decay = args.w_decay,
+                                    weight_decay = args.w_decay,
                                     nesterov = args.nesterov)
         elif args.opt_type == 'adam':
             optimizer = torch.optim.Adam(trainable_vars, 
                                         lr=args.lr, 
                                         betas=(args.beta1, 0.999),
                                         eps=1e-08, 
-                                        w_decay=args.w_decay,
+                                        weight_decay=args.w_decay,
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
 
@@ -224,22 +291,22 @@ def optimizer_settings(freeze_or_not,model,args):
             optimizer = torch.optim.SGD(trainable_vars,
                                     lr = args.lr,
                                     momentum = args.beta1,
-                                    w_decay = args.w_decay,
+                                    weight_decay = args.w_decay,
                                     nesterov = args.nesterov)
         elif args.opt_type == 'adam':
             optimizer = torch.optim.Adam(trainable_vars, 
                                         lr=args.lr, 
                                         betas=(args.beta1, 0.999),
                                         eps=1e-08, 
-                                        w_decay=args.w_decay,
+                                        weight_decay=args.w_decay,
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
     
-    if args.auto_lr_tpye == 'v_au':
+    if args.lr_tpye == 'v_au':
         lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, 
                                     verbose=True, threshold=1e-4, threshold_mode='rel',
                                     cooldown=3, min_lr=0, eps=1e-08)
-    elif args.auto_lr_tpye == 'ms': 
+    elif args.lr_tpye == 'ms': 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.step, gamma=args.factor, last_epoch=-1)
     
     else: print('lr_scheduler type error, please choose ms or v_au')
@@ -299,12 +366,12 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         begin = time.time()
 
         #for short test
-        if each_batch == 5:
-            break
+        # if each_batch == 5:
+        #     break
     #weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
     train_time = time.time() - train_time
-    print('total val time:',train_time)
+    print('total training time:',train_time)
     return loss_train
 
 
@@ -362,9 +429,11 @@ def val_one_epoch(img_input,model,epoch,args):
     # temporary
     weight_con = torch.ones([1,args.paf_num+args.heatmap_num])
     weight_con = weight_con.cuda()
-
+    
     with torch.no_grad():
         for each_batch, (img, target_heatmap, target_paf) in enumerate(img_input):
+            # if each_batch == 5:
+            #     break
             data_time = time.time() - begin
             img = img.cuda()
             target_heatmap = target_heatmap.cuda()
@@ -372,7 +441,7 @@ def val_one_epoch(img_input,model,epoch,args):
 
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
-                loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+                loss = CMUnet_loss.get_old_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
                 loss_val += loss['final']
         
             
@@ -430,67 +499,6 @@ def Online_weight_control(loss_list,args):
     
     return weight_con
 
-
-def main():
-    #load config parameters
-    args = cli()
-    save_config(args)
-    
-    # data portion
-    train_loader = mainloader.train_factory('train',args)
-    val_loader = mainloader.train_factory('val',args)
-
-    # network portion
-    model = CMU_old.CMUnetwork(args)
-    optimizer,lr_scheduler = optimizer_settings(False,model,args)
-    start_epoch = load_checkpoints(model,optimizer,lr_scheduler,args)
-    # multi_gpu and cuda, will occur some bug when inner some function
-    model = torch.nn.DataParallel(model,args.gpu).cuda()
-    
-    # val loss boundary and tensorboard path
-    val_loss_min = np.inf
-    lr = args.lr
-    writer = SummaryWriter(args.log_path)
-    flag = 0
-    # start freeze training
-    if args.freeze_base != 0 and start_epoch <= args.freeze_base:
-        flag = 1
-        print("start freeze some weight training for epoch {}-{}".format(start_epoch,args.freeze_base)) 
-        optimizer,lr_scheduler = optimizer_settings(True,model,args)
-        
-        for epoch in range(start_epoch,args.freeze_base):
-            loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
-            loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
-            # save to tensorboard
-            writer.add_scalars('train_val_loss_epoch', {'train loss': loss_train,
-                                                  'val loss': loss_val}, epoch)
-            writer.add_scalar('accuracy_epoch', accuracy_val, epoch)
-            writer.add_scalar('lr_epoch', lr, epoch)
-            
-            val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
-    
-    #start normal training
-    print("start normal training")
-    if flag: 
-        optimizer,lr_scheduler = optimizer_settings(False,model,args)
-        start_epoch = args.freeze_base
-    for epoch in range(start_epoch,args.epochs):
-        loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
-        loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
-
-        if args.auto_lr:
-            lr_scheduler.step(loss_val)
-        else:
-            print('no using lr_scheduler')
-
-        # save to tensorboard
-        writer.add_scalars('train_val_loss', {'train loss': loss_train,
-                                                'val loss': loss_val}, epoch)
-        writer.add_scalar('accuracy', accuracy_val, epoch)
-        writer.add_scalar('lr_epoch', lr, epoch)
-
-        val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
-    writer.close()
 
 if __name__ == "__main__":
     main()
