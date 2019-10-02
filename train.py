@@ -22,63 +22,70 @@ from . import evaluate
 
 def cli():
     """
-    set all parameters 
+    setting all parameters
+    1. hyper-parameters of building a network is in network.cli
+    2. loss control parameters is in loss.cli
+    3. data loader parameters such as path is in loader.cli
+    4. evaluate threshold in val_cli 
+    5. basic hyper-para such as learnling rate is in this file
     """
-    print("if you change the network, make sure: 1.change the cli 2.change the net loader 3. change loss in train and val")
+    print("if you change the network, make sure:","\n",
+          "1.changing the network_cli","\n",
+          "2.changing the net loader","\n",
+          "3.changing loss in train and val")
+
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    CMU_old.cli(parser)
-    CMUnet_loss.cli(parser)
-    mainloader.train_cli(parser)
+    CMU_old.network_cli(parser)
+    CMUnet_loss.loss_cli(parser)
+    mainloader.loader_cli(parser)
     evaluate.val_cli(parser)
     
+    parser.add_argument('--name',        default='test_checkpoint', type=str)
     # trian setting
-    parser.add_argument('--pre_train_epoch', default=0, type=int)
-    parser.add_argument('--freeze_base', default=0, type=int,
-                        help='number of epochs to train with frozen base')
-    parser.add_argument('--epochs', default=300, type=int)
-    parser.add_argument('--gpu', default=[0,1], type=list, help="gpu number")
-    parser.add_argument('--per_batch_size', default= 5, type=int,
-                        help='batch size per gpu')
+    parser.add_argument('--pre_train',   default=0,      type=int)
+    parser.add_argument('--freeze_base', default=0,      type=int,   help='number of epochs to train with frozen base')
+    parser.add_argument('--epochs',      default=300,    type=int)
+    parser.add_argument('--per_batch',   default=8,     type=int,   help='batch size per gpu')
+    parser.add_argument('--gpu',         default=[0,1],  type=list,  help="gpu number")
     
     # optimizer
-    parser.add_argument('-opt_type', default='adam', type=str,help='sgd or adam')
-    parser.add_argument('--auto_lr', default=True, type=bool)
-    parser.add_argument('--auto_lr_tpye', default='milestone', type=str,
-                        help='milestone or auto val')
-    parser.add_argument('--factor', default=0.1, type=float)
-    parser.add_argument('--patience', default=3, type=int)
-    parser.add_argument('--lr', default=1e-4, type=float)
-    parser.add_argument('--weight_decay', default=0, type=float)
-    parser.add_argument('--step', default=[80,100], type=list)
-    parser.add_argument('--momentum_or_beta1', default=0.90, type=float)
-    parser.add_argument('--beta2', default=0.999, type=float)
-    parser.add_argument("--epr", default=1e-8, type=float)
-    parser.add_argument('--nesterov', default=False, type=bool)
+    parser.add_argument('--opt_type',    default='adam', type=str,   help='sgd or adam')
+    parser.add_argument('--lr',          default=1e-4,   type=float)
+    parser.add_argument('--w_decay',     default=0.,     type=float)
+    parser.add_argument('--beta1',       default=0.90,   type=float)
+    parser.add_argument('--beta2',       default=0.999,  type=float)
+    parser.add_argument('--nesterov',    default=False,  type=bool,  help='for sgd')
+
+    parser.add_argument('--auto_lr',     default=True,   type=bool,  help='using auto lr control or not')
+    parser.add_argument('--lr_tpye',     default='ms',   type=str,   help='milestone or auto_val')
+    parser.add_argument('--factor',      default=0.1,    type=float, help='divide factor of lr')
+    parser.add_argument('--patience',    default=3,      type=int)
+    parser.add_argument('--step',        default=[80,100], type=list)
 
     # others
-    parser.add_argument('--name', default='op_big_lr', type=str)
-    parser.add_argument('--log_path_base', default='./Pytorch_Pose_Estimation_Framework/ForSave/log/')
-    parser.add_argument('--weight_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
-    parser.add_argument('--weight_old_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--weight_load_dir', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--print_fre', default=5, type=int)
-    parser.add_argument('--val_type', default=0, type=int)
+    parser.add_argument('--log_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
+    parser.add_argument('--weight_pre',  default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
+    parser.add_argument('--weight_base', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
+    parser.add_argument('--checkpoint',  default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
+    parser.add_argument('--print_fre',   default=5,      type=int)
+    parser.add_argument('--val_type',    default=0,      type=int)
    
     args = parser.parse_args()
     return args
 
 
 def save_config(args):
-    ''' 
-    save the parameters to a txt file in the logpath 
-    '''
-    batch_size = len(args.gpu) * args.per_batch_size
-    args.log_path = os.path.join(args.log_path_base,args.name)
-    args.weight_path = os.path.join(args.weight_old_dir,args.name)
+    """
+    save the parameters to a txt file in the logpath
+    1. contains all hyper-parameters of training 
+    """
+    batch_size = len(args.gpu) * args.per_batch
+    args.log_path = os.path.join(args.log_base,args.name)
+    args.weight_path = os.path.join(args.weight_base,args.name)
     args.batch_size = batch_size
     try:
         os.mkdir(args.log_path)
@@ -90,9 +97,9 @@ def save_config(args):
             f.write(str1)
             str1 = 'lr: ' +  str(args.lr) + '\n'
             f.write(str1)
-            str1 = 'weight_decay: ' +  str(args.weight_decay) + '\n'
+            str1 = 'w_decay: ' +  str(args.w_decay) + '\n'
             f.write(str1)
-            str1 = 'beta1: ' +  str(args.momentum_or_beta1) + '\n'
+            str1 = 'beta1: ' +  str(args.beta1) + '\n'
             f.write(str1)
             str1 = 'beta2: ' +  str(args.beta2) + '\n'
             f.write(str1)
@@ -109,51 +116,86 @@ def save_config(args):
             str1 = 'step: ' +  str(args.step[0]) +" "+  str(args.step[1]) + '\n'
             f.write(str1)
     except:
-        pass
+        print('already exist the log file, please remove them if needed')
 
     
-def load_weghts(model,args):
-    ''' 
-    load weights for models in the following order
-        1. load old weights and epoch num
-        2. load imgnet per train model
-    '''
-
-    # load weight files
+def load_checkpoints(model,optimizer,lr_scheduler,args):
+    """
+    load checkpoints for models in the following order
+    1. load old checkpoints
+    2. load the optimizer, lr_scheduler, model_weight and epoch
+    3. load imgnet per train model if no checkpoints
+    """
     try:
-        state_dict = torch.load(args.weight_load_dir)
-        print("load old weight")
+        checkpoint = torch.load(args.checkpoint)
+        model_state = checkpoint['model_state']
+        opt_state = checkpoint['opt_state']
+        lr_state = checkpoint['lr_state']
+        start_epoch = checkpoint['epoch']
+        print("load checkpoint success")
+        try:
+            model.load_state_dict(model_state)
+        except:
+            new_state_dict = OrderedDict()
+            for k, v in model_state.items():
+                name = k[7:]
+                new_state_dict[name] = v
+            model.load_state_dict(new_state_dict)
+        print("init network success") 
+        try:
+            optimizer.load_state_dict(opt_state)
+            print('load opt state success')
+        except:
+            print('load opt state failed')
+        try:
+            lr_scheduler.load_state_dict(lr_state)
+            print('load lr state success')
+        except:
+            print('load lr state failed')   
+
     except:
-        print("no old weight to load")
-        state_dict = model_zoo.load_url(args.weight_vgg19, model_dir=args.weight_dir)
-        vgg_keys = state_dict.keys()
-        weight_load_dir = {}
+        start_epoch = 0
+        print("no checkpoints to load")
+        model_state = model_zoo.load_url(args.weight_vgg19, model_dir=args.weight_pre)
+        vgg_keys = model_state.keys()
+        pretrain_state = {}
         for i in range(20):
-            weight_load_dir[list(model.state_dict().keys())[i]
-                    ] = state_dict[list(vgg_keys)[i]]
-        state_dict = model.state_dict()
-        state_dict.update(weight_load_dir)  
+            pretrain_state[list(model.state_dict().keys())[i]
+                    ] = model_state[list(vgg_keys)[i]]
+        model_state = model.state_dict()
+        model_state.update(pretrain_state)  
         print("load imgnet pretrain weight")
+        model.load_state_dict(model_state)
+        print("init network success")
 
-    # load files to model
-    try: 
-        model.load_state_dict(state_dict)
-    except:
-        new_state_dict = OrderedDict()
-        for k, v in state_dict.items():
-            name = k[7:]
-            new_state_dict[name] = v
-        model.load_state_dict(new_state_dict)
+    return start_epoch
 
-    print("init network success")
+
+def save_checkpoints(model,optimizer,lr_scheduler,epoch,val_loss,val_min,args):
+    """
+    save the min val loss and every train loss
+    """
+    train_path = os.path.join(args.weight_path,'train_final.pth.tar')
+    states = { 
+               'model_state': model.state_dict(),
+               'epoch': epoch + 1,
+               'opt_state': optimizer.state_dict(),
+               'lr_state': lr_scheduler.state_dict(),
+    }
+    torch.save(states,train_path)
+    if val_loss<val_min:
+        val_path = os.path.join(args.weight_path,'val_{}.pth.tar'.format(epoch))
+        torch.save(states,val_path)
+        val_min = val_loss
+    
+    return val_min
 
 
 def optimizer_settings(freeze_or_not,model,args):
-    ''' 
+    """
     1. choose different optimizer method here 
     2. default is SGD with momentum
-    '''
-
+    """
     if freeze_or_not:
         for i in range(20):
             for param in model.module.model0[i].parameters():
@@ -162,15 +204,15 @@ def optimizer_settings(freeze_or_not,model,args):
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD(trainable_vars,
                                     lr = args.lr,
-                                    momentum = args.momentum_or_beta1,
-                                    weight_decay = args.weight_decay,
+                                    momentum = args.beta1,
+                                    w_decay = args.w_decay,
                                     nesterov = args.nesterov)
         elif args.opt_type == 'adam':
             optimizer = torch.optim.Adam(trainable_vars, 
                                         lr=args.lr, 
-                                        betas=(args.momentum_or_beta1, 0.999),
+                                        betas=(args.beta1, 0.999),
                                         eps=1e-08, 
-                                        weight_decay=args.weight_decay,
+                                        w_decay=args.w_decay,
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
 
@@ -181,35 +223,39 @@ def optimizer_settings(freeze_or_not,model,args):
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD(trainable_vars,
                                     lr = args.lr,
-                                    momentum = args.momentum_or_beta1,
-                                    weight_decay = args.weight_decay,
+                                    momentum = args.beta1,
+                                    w_decay = args.w_decay,
                                     nesterov = args.nesterov)
         elif args.opt_type == 'adam':
             optimizer = torch.optim.Adam(trainable_vars, 
                                         lr=args.lr, 
-                                        betas=(args.momentum_or_beta1, 0.999),
+                                        betas=(args.beta1, 0.999),
                                         eps=1e-08, 
-                                        weight_decay=args.weight_decay,
+                                        w_decay=args.w_decay,
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
     
-    if args.auto_lr_tpye == 'val_auto':
+    if args.auto_lr_tpye == 'v_au':
         lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, 
                                     verbose=True, threshold=1e-4, threshold_mode='rel',
                                     cooldown=3, min_lr=0, eps=1e-08)
-    else: 
+    elif args.auto_lr_tpye == 'ms': 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.step, gamma=args.factor, last_epoch=-1)
+    
+    else: print('lr_scheduler type error, please choose ms or v_au')
     
     return optimizer,lr_scheduler
 
 
 def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
-    ''' Finish 1.train for one epoch
-               2.print process, total loss, data time in terminal
-               3.save loss, lr, output img in tensorboard
-        Note   1.you can change the save frequency 
-    '''
-
+    """
+    Finish 
+    1.train for one epoch
+    2.print process, total loss, data time in terminal
+    3.save loss, lr, output img in tensorboard
+    Note   
+    1.you can change the save frequency 
+    """
     loss_train = 0
     model.train()
     length = len(img_input)
@@ -252,9 +298,9 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
             writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
-        # for short test
-        # if each_batch == 5:
-        #     break
+        #for short test
+        if each_batch == 5:
+            break
     #weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
     train_time = time.time() - train_time
@@ -263,7 +309,9 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
 
 
 def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
-    ''' some public print information for both train and val '''    
+    """
+    some public print information for both train and val
+    """    
     str_print = "Epoch: [{0}][{1}/{2}\t]".format(epoch,current_step,len_of_input)
     str_print += "Total_loss: {loss:.4f}({loss_avg:.4f})".format(loss = loss['final'],
                             loss_avg = loss_avg/(current_step+1))
@@ -278,7 +326,9 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
 
 
 def print_to_terminal_old(epoch,current_step,len_of_input,loss,loss_avg,datatime):
-    ''' some public print information for both train and val '''    
+    """
+    some public print information for both train and val
+    """    
     str_print = "Epoch: [{0}][{1}/{2}\t]".format(epoch,current_step,len_of_input)
     str_print += "Total_loss: {loss:.4f}({loss_avg:.4f})".format(loss = loss['final'],
                             loss_avg = loss_avg/(current_step+1))
@@ -293,12 +343,15 @@ def print_to_terminal_old(epoch,current_step,len_of_input,loss,loss_avg,datatime
 
 
 def val_one_epoch(img_input,model,epoch,args):
-    ''' val_type: 0.only calculate val_loss
-                  1.only calculate accuracy
-                  2.both accuracy and val_loss
-        Note:     1.accuracy is single scale
-                  2.for multi-scale acc, run evaluate.py
-    '''
+    """ 
+    val_type: 
+    0.only calculate val_loss
+    1.only calculate accuracy
+    2.both accuracy and val_loss
+    Note:     
+    1.accuracy is single scale
+    2.for multi-scale acc, run evaluate.py
+    """
     loss_val, accuracy = 0,0
     json_output = []
     model.eval()
@@ -354,8 +407,8 @@ def val_one_epoch(img_input,model,epoch,args):
 
 
 def Online_weight_control(loss_list,args):
-    '''
-    '''
+    """
+    """
     loss_paf_ = torch.zeros([args.paf_num])
     loss_heat_ = torch.zeros([args.heatmap_num])
     for i in range(args.paf_stage):
@@ -389,22 +442,23 @@ def main():
 
     # network portion
     model = CMU_old.CMUnetwork(args)
-    #model = CMU_BN_net.CMUnetwork(args)
-    load_weghts(model,args)
+    optimizer,lr_scheduler = optimizer_settings(False,model,args)
+    start_epoch = load_checkpoints(model,optimizer,lr_scheduler,args)
     # multi_gpu and cuda, will occur some bug when inner some function
     model = torch.nn.DataParallel(model,args.gpu).cuda()
-
+    
     # val loss boundary and tensorboard path
     val_loss_min = np.inf
     lr = args.lr
     writer = SummaryWriter(args.log_path)
-    
+    flag = 0
     # start freeze training
-    if args.freeze_base != 0:
-        print("start freeze some weight training for epoch 0-{}".format(args.freeze_base)) 
+    if args.freeze_base != 0 and start_epoch <= args.freeze_base:
+        flag = 1
+        print("start freeze some weight training for epoch {}-{}".format(start_epoch,args.freeze_base)) 
         optimizer,lr_scheduler = optimizer_settings(True,model,args)
-
-        for epoch in range(args.freeze_base):
+        
+        for epoch in range(start_epoch,args.freeze_base):
             loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
             loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
             # save to tensorboard
@@ -412,27 +466,22 @@ def main():
                                                   'val loss': loss_val}, epoch)
             writer.add_scalar('accuracy_epoch', accuracy_val, epoch)
             writer.add_scalar('lr_epoch', lr, epoch)
-
-            # val_weight is best val_loss weights
-            # save train_weight is for continue training
-            save_train_path = os.path.join(args.weight_path,"_train_final.pth")
-            save_val_path = os.path.join(args.weight_path,"_val_{}.pth".format(epoch))
-            if val_loss_min > loss_val:
-                val_loss_min = min(val_loss_min,loss_val)
-                torch.save(model.state_dict(),save_val_path)
-            torch.save(model.state_dict(),save_train_path)
+            
+            val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
     
     #start normal training
-    print("start normal training") 
-    optimizer,lr_scheduler = optimizer_settings(False,model,args)
-    for epoch in range(args.epochs):
+    print("start normal training")
+    if flag: 
+        optimizer,lr_scheduler = optimizer_settings(False,model,args)
+        start_epoch = args.freeze_base
+    for epoch in range(start_epoch,args.epochs):
         loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
 
         if args.auto_lr:
             lr_scheduler.step(loss_val)
         else:
-            pass
+            print('no using lr_scheduler')
 
         # save to tensorboard
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
@@ -440,20 +489,7 @@ def main():
         writer.add_scalar('accuracy', accuracy_val, epoch)
         writer.add_scalar('lr_epoch', lr, epoch)
 
-        # val_weight is best val_loss weights
-        # save train_weight is for continue training
-        save_train_path = os.path.join(args.weight_path,"_train_final.pth")
-        save_val_path = os.path.join(args.weight_path,"_val_{}.pth".format(epoch))
-        if val_loss_min > loss_val:
-            counter = 0
-            val_loss_min = min(val_loss_min,loss_val)
-            torch.save(model.state_dict(),save_val_path)
-        else:counter+=1
-        if counter == args.patience:
-            counter =0
-            lr = args.lr * args.factor
-        torch.save(model.state_dict(),save_train_path)
-
+        val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
     writer.close()
 
 if __name__ == "__main__":

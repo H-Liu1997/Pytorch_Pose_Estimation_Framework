@@ -16,7 +16,7 @@ from pycocotools.coco import COCO
 
 from .encoder import heatmap,paf,utils,transforms
 
-def train_cli(parser):
+def loader_cli(parser):
     ''' some parameters of dataloader
         1. data path
         2. training img size

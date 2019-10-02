@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch
 from torch.nn import init
 
-def cli(parser):
+def network_cli(parser):
     ''' network config
         1. paf and heatmap nums
         2. weight path

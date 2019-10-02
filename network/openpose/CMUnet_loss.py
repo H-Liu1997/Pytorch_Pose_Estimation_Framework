@@ -7,7 +7,7 @@ import torch.nn as nn
 
 
 
-def cli(parser):
+def loss_cli(parser):
     group = parser.add_argument_group('loss')
     group.add_argument('--auto_weight', default=False, type=bool)
 
