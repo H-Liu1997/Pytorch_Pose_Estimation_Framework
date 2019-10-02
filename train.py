@@ -44,36 +44,36 @@ def cli():
     mainloader.loader_cli(parser)
     evaluate.val_cli(parser)
     
-    parser.add_argument('--name',        default='test_checkpoint', type=str)
+    parser.add_argument('--name',           default='test_checkpoint',  type=str)
     # trian setting
-    parser.add_argument('--pre_train',   default=0,      type=int)
-    parser.add_argument('--freeze_base', default=0,      type=int,   help='number of epochs to train with frozen base')
-    parser.add_argument('--epochs',      default=300,    type=int)
-    parser.add_argument('--per_batch',   default=8,      type=int,   help='batch size per gpu')
-    parser.add_argument('--gpu',         default=[0,1],  type=list,  help="gpu number")
+    parser.add_argument('--pre_train',      default=0,          type=int)
+    parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
+    parser.add_argument('--epochs',         default=300,        type=int)
+    parser.add_argument('--per_batch',      default=8,          type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0,1],      type=list,      help="gpu number")
     
     # optimizer
-    parser.add_argument('--opt_type',    default='adam', type=str,   help='sgd or adam')
-    parser.add_argument('--lr',          default=1e-4,   type=float)
-    parser.add_argument('--w_decay',     default=0.,     type=float)
-    parser.add_argument('--beta1',       default=0.90,   type=float)
-    parser.add_argument('--beta2',       default=0.999,  type=float)
-    parser.add_argument('--nesterov',    default=False,  type=bool,  help='for sgd')
+    parser.add_argument('--opt_type',       default='adam',     type=str,       help='sgd or adam')
+    parser.add_argument('--lr',             default=1e-4,       type=float)
+    parser.add_argument('--w_decay',        default=0.,         type=float)
+    parser.add_argument('--beta1',          default=0.90,       type=float)
+    parser.add_argument('--beta2',          default=0.999,      type=float)
+    parser.add_argument('--nesterov',       default=False,      type=bool,      help='for sgd')
 
-    parser.add_argument('--auto_lr',     default=True,   type=bool,  help='using auto lr control or not')
-    parser.add_argument('--lr_tpye',     default='ms',   type=str,   help='milestone or auto_val')
-    parser.add_argument('--factor',      default=0.1,    type=float, help='divide factor of lr')
-    parser.add_argument('--patience',    default=3,      type=int)
-    parser.add_argument('--step',        default=[80,100], type=list)
+    parser.add_argument('--auto_lr',        default=True,       type=bool,      help='using auto lr control or not')
+    parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
+    parser.add_argument('--factor',         default=0.1,        type=float,     help='divide factor of lr')
+    parser.add_argument('--patience',       default=3,          type=int)
+    parser.add_argument('--step',           default=[80,100],   type=list)
 
     # others
-    parser.add_argument('--log_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
-    parser.add_argument('--weight_pre',  default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
-    parser.add_argument('--weight_base', default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',  default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/test_checkpoint/train_final.pth")
-    parser.add_argument('--print_fre',   default=5,      type=int)
-    parser.add_argument('--val_type',    default=0,      type=int)
-   
+    parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
+    parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
+    parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/test_checkpoint/train_final.pth")
+    parser.add_argument('--print_fre',      default=5,          type=int)
+    parser.add_argument('--val_type',       default=0,          type=int)
+    
     args = parser.parse_args()
     return args
 
@@ -86,7 +86,7 @@ def main():
     # data portion
     train_loader = mainloader.train_factory('train',args)
     val_loader = mainloader.train_factory('val',args)
-
+    
     # network portion
     model = CMU_old.CMUnetwork(args)
     # multi_gpu and cuda, will occur some bug when inner some function
@@ -99,6 +99,7 @@ def main():
     lr = args.lr
     writer = SummaryWriter(args.log_path)
     flag = 0
+
     # start freeze training
     if args.freeze_base != 0 and start_epoch <= args.freeze_base:
         flag = 1
