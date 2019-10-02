@@ -16,7 +16,7 @@ import numpy as np
 from tensorboardX import SummaryWriter
 
 from .datasets import mainloader
-from .network.openpose import CMU_BN_net, CMUnet_loss,CMU_old
+from .network.openpose import CMU_BN_net, CMUnet_loss, CMU_old
 from . import evaluate
 
 
@@ -79,28 +79,28 @@ def cli():
 
 
 def main():
-    #load config parameters
+    '''load config parameters'''
     args = cli()
     save_config(args)
     
-    # data portion
+    '''data portion'''
     train_loader = mainloader.train_factory('train',args)
     val_loader = mainloader.train_factory('val',args)
     
-    # network portion
+    '''network portion'''
     model = CMU_old.CMUnetwork(args)
     # multi_gpu and cuda, will occur some bug when inner some function
     model = torch.nn.DataParallel(model,args.gpu).cuda()
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
     start_epoch = load_checkpoints(model,optimizer,lr_scheduler,args)
     
-    # val loss boundary and tensorboard path
+    '''val loss boundary and tensorboard path'''
     val_loss_min = np.inf
     lr = args.lr
     writer = SummaryWriter(args.log_path)
     flag = 0
 
-    # start freeze training
+    '''start freeze training'''
     if args.freeze_base != 0 and start_epoch <= args.freeze_base:
         flag = 1
         print("start freeze some weight training for epoch {}-{}".format(start_epoch,args.freeze_base)) 
@@ -109,7 +109,7 @@ def main():
         for epoch in range(start_epoch,args.freeze_base):
             loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
             loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
-            # save to tensorboard
+            '''save to tensorboard'''
             writer.add_scalars('train_val_loss_epoch', {'train loss': loss_train,
                                                   'val loss': loss_val}, epoch)
             writer.add_scalar('accuracy_epoch', accuracy_val, epoch)
@@ -117,7 +117,7 @@ def main():
             
             val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
     
-    #start normal training
+    '''start normal training'''
     print("start normal training")
     if flag: 
         optimizer,lr_scheduler = optimizer_settings(False,model,args)
@@ -131,7 +131,7 @@ def main():
         else:
             print('no using lr_scheduler')
 
-        # save to tensorboard
+        '''save to tensorboard'''
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                 'val loss': loss_val}, epoch)
         writer.add_scalar('accuracy', accuracy_val, epoch)
@@ -331,12 +331,12 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     train_time = time.time()
     begin = time.time()
     
-    # loss control
+    '''loss control'''
     loss_for_control = torch.zeros([6,args.paf_num+args.heatmap_num])
     weight_con = torch.ones([1,args.paf_num+args.heatmap_num])
     weight_con = weight_con.cuda()
     
-    # start train
+    '''start training'''
     for each_batch, (img, target_heatmap, target_paf) in enumerate(img_input):
         data_time = time.time() - begin
 
@@ -366,7 +366,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
             writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
-        #for short test
+        '''for short test'''
         # if each_batch == 5:
         #     break
     #weight_con = Online_weight_control(loss_for_control)
