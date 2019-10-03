@@ -13,6 +13,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader,Dataset
 from pycocotools.coco import COCO
+from scipy.spatial.distance import cdist
 
 from .encoder import heatmap,paf,utils,transforms
 
@@ -38,7 +39,51 @@ def loader_cli(parser):
                         help='square edge of input images')
     group.add_argument('--no_augmentation',     default=False, action='store_false',
                         help='do not apply data augmentation')
-                          
+
+class Meta(object):
+    """
+    Metadata representing a single data point for training.
+    """
+    __slots__ = (
+        # 'img_path',
+        # 'height',
+        # 'width',
+        'center',
+        'bbox',
+        'area',
+        'num_keypoints',
+        'masks_segments',
+        'scale',
+        'all_joints',
+        'img',
+        'mask',
+        'aug_center',
+        'aug_joints')
+
+    def __init__(self, image_id,center, bbox,
+                 area, scale, num_keypoints):
+
+        self.image_id = image_id
+        # self.height = height
+        # self.width = width
+        self.center = center
+        self.bbox = bbox
+        self.area = area
+        self.scale = scale
+        self.num_keypoints = num_keypoints
+
+        # updated after iterating over all persons
+        self.masks_segments = None
+        self.all_joints = None
+
+        # updated during augmentation
+        self.img = None
+        self.mask = None
+        self.aug_center = None
+        self.aug_joints = None
+
+
+
 class COCOKeypoints(Dataset):
     ''' finish generate mask and gt for data '''
 
@@ -68,6 +113,7 @@ class COCOKeypoints(Dataset):
         self.input_y = input_y
         self.input_x = input_x        
         self.stride = stride
+        self.all_meta = []
 
         self.log = logging.getLogger(self.__class__.__name__)
 
@@ -81,11 +127,76 @@ class COCOKeypoints(Dataset):
         def has_keypoint_annotation(image_id):
             ann_ids = self.coco.getAnnIds(imgIds=image_id, catIds=self.cat_ids)
             anns = self.coco.loadAnns(ann_ids)
-            for ann in anns:
-                if 'keypoints' not in ann:
+            '''
+            have person already
+            for each person check,
+            '''
+            persons = []
+            prev_center = []
+            masks = []
+            keypoints = []
+
+            persons_ids = persons_ids = np.argsort([-a['area'] for a in anns], kind='mergesort')
+            
+            for id in list(persons_ids):
+                person_meta = anns[id]
+
+                if person_meta["iscrowd"]:
+                    masks.append(self.coco.annToRLE(person_meta))
                     continue
-                if any(v > 0.0 for v in ann['keypoints'][2::3]):
+
+                # skip this person if parts number is too low or if
+                # segmentation area is too small
+
+                if person_meta["num_keypoints"] < 5 or person_meta["area"] < 32 * 32:
+                    masks.append(self.coco.annToRLE(person_meta))
+                    continue
+
+                person_center = [person_meta["bbox"][0] + person_meta["bbox"][2] / 2,
+                                    person_meta["bbox"][1] + person_meta["bbox"][3] / 2]
+
+                # skip this person if the distance to existing person is too small
+
+                too_close = False
+                for pc in prev_center:
+                    a = np.expand_dims(pc[:2], axis=0)
+                    b = np.expand_dims(person_center, axis=0)
+                    dist = cdist(a, b)[0]
+                    if dist < pc[2]*0.3:
+                        too_close = True
+                        break
+
+                if too_close:
+                    # add mask of this person. we don't want to show the network
+                    # unlabeled people
+                    masks.append(self.coco.annToRLE(person_meta))
+                    continue
+
+                pers = Meta(
+                        image_id = image_id,
+                        center=np.expand_dims(person_center, axis=0),
+                        bbox=person_meta["bbox"],
+                        area=person_meta["area"],
+                        #may some bug
+                        scale=person_meta["bbox"][3] / self.input_y,
+                        num_keypoints=person_meta["num_keypoints"])
+
+                keypoints.append(person_meta["keypoints"])
+                persons.append(pers)
+                prev_center.append(np.append(person_center, max(person_meta["bbox"][2],
+                                                                person_meta["bbox"][3])))
+            if len(persons) > 0:
+                    main_person = persons[0]
+                    main_person.masks_segments = masks
+                    #main_person.all_joints = JointsLoader.from_coco_keypoints(keypoints, w, h)
+                    self.all_meta.append(main_person)
                     return True
+
+            # for ann in anns:
+            #     if 'keypoints' not in ann:
+            #         continue
+            #     if any(v > 0.0 for v in ann['keypoints'][2::3]):
+            #         return True
             return False
 
         self.ids = [image_id for image_id in self.ids
@@ -193,37 +304,40 @@ class COCOKeypoints(Dataset):
             index (int): Index
 
         """
-        image_id = self.ids[index]
-        ann_ids = self.coco.getAnnIds(imgIds=image_id, catIds=self.cat_ids)
+        per_meta = self.all_meta[index]
+        
+        ann_ids = self.coco.getAnnIds(imgIds=per_meta.image_id)
         anns = self.coco.loadAnns(ann_ids)
         #why?
         anns = copy.deepcopy(anns)
 
-        image_info = self.coco.loadImgs(image_id)[0]
+        image_info = self.coco.loadImgs(per_meta.image_id)[0]
         self.log.debug(image_info)
         with open(os.path.join(self.root, image_info['file_name']), 'rb') as f:
             image = Image.open(f).convert('RGB')
 
         meta_init = {
             'dataset_index': index,
-            'image_id': image_id,
+            'image_id': per_meta.image_id,
             'file_name': image_info['file_name'],
         }
-
+        # finish generate mask
+        mask = generate_mask(per_meta.masks_segments)
         image, anns, meta = self.preprocess(image, anns, None)
+        mask, anns, meta = self.preprocess(mask, anns, None)
              
         if isinstance(image, list):
-            return self.multi_image_processing(image, anns, meta, meta_init)
+            return self.multi_image_processing(image, anns, meta, mask, meta_init)
 
-        return self.single_image_processing(image, anns, meta, meta_init)
+        return self.single_image_processing(image, anns, meta, mask, meta_init)
 
-    def multi_image_processing(self, image_list, anns_list, meta_list, meta_init):
+    def multi_image_processing(self, image_list, anns_list, meta_list,mask, meta_init):
         return list(zip(*[
-            self.single_image_processing(image, anns, meta, meta_init)
+            self.single_image_processing(image, anns, meta, mask, meta_init)
             for image, anns, meta in zip(image_list, anns_list, meta_list)
         ]))
 
-    def single_image_processing(self, image, anns, meta, meta_init):
+    def single_image_processing(self, image, anns, meta,mask, meta_init):
         meta.update(meta_init)
 
         # transform image
@@ -244,7 +358,7 @@ class COCOKeypoints(Dataset):
             heatmaps.transpose((2, 0, 1)).astype(np.float32))
             
         pafs = torch.from_numpy(pafs.transpose((2, 0, 1)).astype(np.float32))       
-        return image, heatmaps, pafs
+        return image, heatmaps, pafs, mask
 
     def __len__(self):
         return len(self.ids)
