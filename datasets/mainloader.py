@@ -34,7 +34,7 @@ def loader_cli(parser):
     group.add_argument('--val_image_dir',       default='./dataset/COCO/images/val2017')
     group.add_argument('--n_images',            default=None, type=int,
                        help='number of images to sample')
-    group.add_argument('--loader_workers',      default=1, type=int,
+    group.add_argument('--loader_workers',      default=16, type=int,
                        help='number of workers for data loading')
     group.add_argument('--square_edge',         default=368, type=int,
                         help='square edge of input images')

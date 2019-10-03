@@ -39,12 +39,12 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    CMU_old.network_cli(parser)
+    CMU_BN_net.network_cli(parser)
     CMUnet_loss.loss_cli(parser)
     mainloader.loader_cli(parser)
     evaluate.val_cli(parser)
     
-    parser.add_argument('--name',           default='test_checkpoint',  type=str)
+    parser.add_argument('--name',           default='new_mask_adam',  type=str)
     # trian setting
     parser.add_argument('--pre_train',      default=0,          type=int)
     parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
@@ -64,7 +64,7 @@ def cli():
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
     parser.add_argument('--factor',         default=0.1,        type=float,     help='divide factor of lr')
     parser.add_argument('--patience',       default=3,          type=int)
-    parser.add_argument('--step',           default=[80,100],   type=list)
+    parser.add_argument('--step',           default=[90,110],   type=list)
 
     # others
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
@@ -88,7 +88,7 @@ def main():
     val_loader = mainloader.train_factory('val',args)
     
     '''network portion'''
-    model = CMU_old.CMUnetwork(args)
+    model = CMU_BN_net.CMUnetwork(args)
     # multi_gpu and cuda, will occur some bug when inner some function
     model = torch.nn.DataParallel(model,args.gpu).cuda()
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
@@ -346,7 +346,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     
         _, saved_for_loss = model(img)
         #loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
-        loss = CMUnet_loss.get_old_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+        loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
 
         # for i in range(args.paf_stage):
         #     for j in range(args.paf_num):
@@ -361,7 +361,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
@@ -442,12 +442,12 @@ def val_one_epoch(img_input,model,epoch,args):
 
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
-                loss = CMUnet_loss.get_old_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+                loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
                 loss_val += loss['final']
         
             
             if each_batch % args.print_fre == 0:
-                print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
+                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
                 #print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
             begin = time.time()
         loss_val /= len(img_input)        
