@@ -22,6 +22,7 @@ from . import evaluate
 
 def cli():
     """
+    test
     setting all parameters
     1. hyper-parameters of building a network is in network.cli
     2. loss control parameters is in loss.cli
