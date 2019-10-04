@@ -363,7 +363,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         if each_batch % args.print_fre == 0:
             print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
-            writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
+            #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
         '''for short test'''

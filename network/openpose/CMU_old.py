@@ -6,6 +6,10 @@ import torch.nn as nn
 import torch
 from torch.nn import init
 
+
+
+    
+
 def network_cli(parser):
     ''' network config
         1. paf and heatmap nums
@@ -17,6 +21,17 @@ def network_cli(parser):
     group.add_argument('--paf_num', default=38, type=int)
     #group.add_argument('--paf_stage', default=4, type=int)
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
+class Debugnetwork(nn.Module):
+    '''
+    '''
+    def __init__(self,args):
+        super(Debugnetwork,self).__init__()
+        self.block_0 = VGG_19(3)
+
+    def forward(self,input_):
+        output = self.block_0(input_)
+        return output
+
 
 class CMUnetwork(nn.Module):
     '''
@@ -217,3 +232,15 @@ class VGG_19(nn.Module):
 
 
 
+if __name__ == "__main__":
+    import argparse
+    from torchsummary import summary
+
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    network_cli(parser)
+    args = parser.parse_args()
+    model = Debugnetwork(args)
+    summary(model,input_size=(3,368,368))
