@@ -49,16 +49,18 @@ def putGaussianMaps(center, accumulate_confid_map,sigma, grid_y, grid_x, stride)
 if __name__ == "__main__":
 
     center = [100,100]
-    heatmap = np.zeros([19,46,46])
+    heatmap = np.zeros([19,60,60])
     i = 0
-    heatmap[i,:,:] = putGaussianMaps(center,heatmap[i,:,:],7,46,46,8)
-    # center = [108,108]
-    # heatmap[i,:,:],heatmap[i+1,:,:] = putGaussianMaps(center,heatmap[i,:,:],heatmap[i+1,:,:],7,46,46,8)
+    heatmap[i,:,:] = putGaussianMaps(center,heatmap[i,:,:],7,60,60,8)
+    center = [108,108]
+    heatmap[i,:,:]= putGaussianMaps(center,heatmap[i,:,:],7,60,60,8)
 
+    heatmap_ = cv2.resize(heatmap[i,:,:],(120,120),interpolation=cv2.INTER_CUBIC)
+    
     a = plt.figure()
     b = a.add_subplot(121)
     b.imshow(heatmap[i,:,:])
-    # c = a.add_subplot(122)
-    # c.imshow(heatmap[i+1,:,:])
+    c = a.add_subplot(122)
+    c.imshow(heatmap_)
     plt.show()
     
