@@ -16,7 +16,7 @@ from pycocotools.coco import COCO
 from scipy.spatial.distance import cdist
 from pycocotools.coco import maskUtils
 
-from .encoder import heatmap,paf,utils,transforms
+from .encoder import heatmap2,paf2,utils,transforms
 
 def loader_cli(parser):
     ''' some parameters of dataloader
@@ -301,7 +301,7 @@ class COCOKeypoints(Dataset):
                 if joint[2] > 0.5:
                     center = joint[:2]
                     gaussian_map = heatmaps[:, :, i]
-                    heatmaps[:, :, i] = heatmap.putGaussianMaps(
+                    heatmaps[:, :, i] = heatmap2.putGaussianMaps(
                         center, gaussian_map,
                         7.0, grid_y, grid_x, self.stride)
         # pafs
@@ -314,7 +314,7 @@ class COCOKeypoints(Dataset):
                     centerB = joint[k2, :2]
                     vec_map = pafs[:, :, 2 * i:2 * (i + 1)]
 
-                    pafs[:, :, 2 * i:2 * (i + 1)], count = paf.putVecMaps(
+                    pafs[:, :, 2 * i:2 * (i + 1)], count = paf2.putVecMaps(
                         centerA=centerA,
                         centerB=centerB,
                         accumulate_vec_map=vec_map,

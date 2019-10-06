@@ -65,7 +65,7 @@ def main():
 
             a = fig.add_subplot(2,2,2)
             a.set_title('heatmap')
-            plt.imshow(_get_bgimg(np_single_img, target_size=(46, 46)),alpha=0.7)
+            plt.imshow(_get_bgimg(np_single_img, target_size=(120, 120)),alpha=0.7)
             tmp = np.amax(np_heatmap, axis=2)
             plt.imshow(tmp, cmap=plt.cm.Reds, alpha=0.3)
             plt.colorbar()
@@ -75,13 +75,13 @@ def main():
 
             a = fig.add_subplot(2, 2, 3)
             a.set_title('paf-x')
-            plt.imshow(_get_bgimg(np_single_img, target_size=(46,46)), alpha=0.7)
+            plt.imshow(_get_bgimg(np_single_img, target_size=(120,120)), alpha=0.7)
             plt.imshow(tmp2_odd, cmap=plt.cm.Reds, alpha=0.3)
             plt.colorbar()
 
             a = fig.add_subplot(2, 2, 4)
             a.set_title('paf-y')
-            plt.imshow(_get_bgimg(np_single_img, target_size=(46,46)), alpha=0.7)
+            plt.imshow(_get_bgimg(np_single_img, target_size=(120,120)), alpha=0.7)
             plt.imshow(tmp2_even, cmap=plt.cm.Reds, alpha=0.3)
             plt.colorbar()
 
