@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.autograd import Variable
+from torch.nn import init
 
 
 def network_cli(parser):
@@ -69,54 +70,40 @@ class FPN(nn.Module):
        
 
         # one part 
-        self.m5top5   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m4top4   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m3top3   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m2top2   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
+        self.m5top5   = nn.Conv2d(256,128, kernel_size=3, stride=1, padding=1)
+        self.m4top4   = nn.Conv2d(256,128, kernel_size=3, stride=1, padding=1)
+        self.m3top3   = nn.Conv2d(256,128, kernel_size=3, stride=1, padding=1)
+        self.m2top2   = nn.Conv2d(256,128, kernel_size=3, stride=1, padding=1)
 
-        self.m5top52   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m4top42   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m3top32   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m2top22   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-
-        self.p5top5_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.p4top4_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.p3top3_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.p2top2_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
+        self.m5top52   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.m4top42   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.m3top32   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.m2top22   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
         # one part finish
         
         # one part
-        self.m5tok5   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
-        self.m4tok4   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
-        self.m3tok3   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
-        self.m2tok2   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
+        self.m5tok5   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
+        self.m4tok4   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
+        self.m3tok3   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
+        self.m2tok2   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
 
-        self.m5tok52   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m4tok42   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m3tok32   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.m2tok22   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
+        self.m5tok52   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.m4tok42   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.m3tok32   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.m2tok22   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
 
-        self.p5top5_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.k4tok4_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.k3tok3_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.k2tok2_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
         # one part finish
 
         # one part
-        self.p50top51   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
-        self.p40top41   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
-        self.p30top31   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
-        self.p20top21   = nn.Conv2d(256 + 38,256, kernel_size=3, stride=1, padding=1)
+        self.p50top51   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
+        self.p40top41   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
+        self.p30top31   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
+        self.p20top21   = nn.Conv2d(256 + 38,128, kernel_size=3, stride=1, padding=1)
 
-        self.p50top512   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.p40top412   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.p30top312   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-        self.p20top212   = nn.Conv2d(256,256, kernel_size=3, stride=1, padding=1)
-
-        self.p51top51_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.p41top41_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.p31top31_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
-        self.p21top21_   = nn.Conv2d(256,128, kernel_size=1, stride=1, padding=0)
+        self.p50top512   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.p40top412   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.p30top312   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
+        self.p20top212   = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1)
         # one part finish
 
         self.psumsmoothp   = nn.Conv2d(512,512, kernel_size=3, stride=1, padding=1)
@@ -134,6 +121,52 @@ class FPN(nn.Module):
             layers.append(block(self.in_planes, planes, stride))
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
+
+    def initi(self):
+        init.normal_(self.self.c5tom5.weight, std=0.01)
+        init.normal_(self.self.c4toc4_.weight, std=0.01)
+        init.normal_(self.self.c3toc3_.weight, std=0.01)
+        init.normal_(self.self.c2toc2_.weight, std=0.01)
+
+        init.normal_(self.self.m5top5.weight, std=0.01)
+        init.normal_(self.self.m4top4.weight, std=0.01)
+        init.normal_(self.self.m3top3.weight, std=0.01)
+        init.normal_(self.self.m2top2.weight, std=0.01)
+
+        init.normal_(self.self.m5top52.weight, std=0.01)
+        init.normal_(self.self.m4top42.weight, std=0.01)
+        init.normal_(self.self.m3top32.weight, std=0.01)
+        init.normal_(self.self.m2top22.weight, std=0.01)
+
+        init.normal_(self.self.m5tok5.weight, std=0.01)
+        init.normal_(self.self.m4tok4.weight, std=0.01)
+        init.normal_(self.self.m3tok3.weight, std=0.01)
+        init.normal_(self.self.m2tok2.weight, std=0.01)
+
+        init.normal_(self.self.m5tok52.weight, std=0.01)
+        init.normal_(self.self.m4tok42.weight, std=0.01)
+        init.normal_(self.self.m3tok32.weight, std=0.01)
+        init.normal_(self.self.m2tok22.weight, std=0.01)
+
+        init.normal_(self.self.p50top51.weight, std=0.01)
+        init.normal_(self.self.p40top41.weight, std=0.01)
+        init.normal_(self.self.p30top31.weight, std=0.01)
+        init.normal_(self.self.p20top21.weight, std=0.01)
+
+        init.normal_(self.self.p50top512.weight, std=0.01)
+        init.normal_(self.self.p40top412.weight, std=0.01)
+        init.normal_(self.self.p30top312.weight, std=0.01)
+        init.normal_(self.self.p20top212.weight, std=0.01)
+
+        init.normal_(self.self.psumsmoothp.weight, std=0.01)
+        init.normal_(self.self.psumsmoothp1.weight, std=0.01)
+        init.normal_(self.self.psumsmoothk.weight, std=0.01)
+        init.normal_(self.self.psumtopaf.weight, std=0.01)
+        init.normal_(self.self.psumtopaf1.weight, std=0.01)
+        init.normal_(self.self.psumtoheat.weight, std=0.01)
+
+
+
 
     def _upsample_add(self, x, y):
         '''Upsample and add two feature maps.
@@ -177,14 +210,19 @@ class FPN(nn.Module):
         p4_ = F.relu(self.m4top42(p4))
         p5_ = F.relu(self.m5top52(p5))
 
-        psum = torch.cat([p2_,p3_,p4_,p5_],1)
+        p2_s = F.upsample(p2_,size=(120,120), mode='nearest', align_corners=None)
+        p3_s = F.upsample(p3_,size=(120,120), mode='nearest', align_corners=None)
+        p4_s = F.upsample(p4_,size=(120,120), mode='nearest', align_corners=None)
+        p5_s = F.upsample(p5_,size=(120,120), mode='nearest', align_corners=None)
+
+        psum = torch.cat([p2_s,p3_s,p4_s,p5_s],1)
         psum_ = F.relu(self.psumsmoothp(psum))
         paf_0_0 = self.psumtopaf(psum_)
         save_for_loss.append(paf_0_0)
 
-        paf_1_0 = F.downsample(paf_0_0, size=(60,60),mode='nearest', align_corners=None)
-        paf_2_0 = F.downsample(paf_0_0, size=(30,30),mode='nearest', align_corners=None)
-        paf_3_0 = F.downsample(paf_0_0, size=(15,15),mode='nearest', align_corners=None)
+        paf_1_0 = F.interpolate(paf_0_0, size=(60,60),mode='bilinear', align_corners=None)
+        paf_2_0 = F.interpolate(paf_0_0, size=(30,30),mode='bilinear', align_corners=None)
+        paf_3_0 = F.interpolate(paf_0_0, size=(15,15),mode='bilinear', align_corners=None)
 
         p_in_2 = torch.cat([paf_0_0,m2],1)
         p_in_3 = torch.cat([paf_1_0,m3],1)
@@ -196,18 +234,23 @@ class FPN(nn.Module):
         p41 = F.relu(self.p40top41(p_in_4))
         p51 = F.relu(self.p50top51(p_in_5))
 
-        p21_ = F.relu(self.p21top21_(p21))
-        p31_ = F.relu(self.p31top31_(p31))
-        p41_ = F.relu(self.p41top41_(p41))
-        p51_ = F.relu(self.p51top51_(p51))
+        p21_ = F.relu(self.p20top212(p21))
+        p31_ = F.relu(self.p30top312(p31))
+        p41_ = F.relu(self.p40top412(p41))
+        p51_ = F.relu(self.p50top512(p51))
 
-        psum1 = torch.cat([p21_,p31_,p41_,p51_],1)
+        p21_s = F.upsample(p21_,size=(120,120), mode='nearest', align_corners=None)
+        p31_s = F.upsample(p31_,size=(120,120), mode='nearest', align_corners=None)
+        p41_s = F.upsample(p41_,size=(120,120), mode='nearest', align_corners=None)
+        p51_s = F.upsample(p51_,size=(120,120), mode='nearest', align_corners=None)
+
+        psum1 = torch.cat([p21_s,p31_s,p41_s,p51_s],1)
         psum1_ = F.relu(self.psumsmoothp1(psum1))
         paf_0_1 = self.psumtopaf1(psum1_)
 
-        paf_1_1 = F.downsample(paf_0_1, size=(60,60),mode='nearest', align_corners=None)
-        paf_2_1 = F.downsample(paf_0_1, size=(30,30),mode='nearest', align_corners=None)
-        paf_3_1 = F.downsample(paf_0_1, size=(15,15),mode='nearest', align_corners=None)
+        paf_1_1 = F.interpolate(paf_0_1, size=(60,60),mode='bilinear', align_corners=None)
+        paf_2_1 = F.interpolate(paf_0_1, size=(30,30),mode='bilinear', align_corners=None)
+        paf_3_1 = F.interpolate(paf_0_1, size=(15,15),mode='bilinear', align_corners=None)
         save_for_loss.append(paf_0_1)
 
         k_in_2 = torch.cat([paf_0_1,m2],1)
@@ -225,7 +268,12 @@ class FPN(nn.Module):
         k4_ = F.relu(self.m4tok42(k4))
         k5_ = F.relu(self.m5tok52(k5))
 
-        ksum = torch.cat([k2_,k3_,k4_,k5_],1)
+        k2_s = F.upsample(k2_,size=(120,120), mode='nearest', align_corners=None)
+        k3_s = F.upsample(k3_,size=(120,120), mode='nearest', align_corners=None)
+        k4_s = F.upsample(k4_,size=(120,120), mode='nearest', align_corners=None)
+        k5_s = F.upsample(k5_,size=(120,120), mode='nearest', align_corners=None)
+
+        ksum = torch.cat([k2_s,k3_s,k4_s,k5_s],1)
         ksum_ = F.relu(self.psumsmoothk(ksum))
         heat = self.psumtoheat(ksum_)
 
@@ -240,3 +288,18 @@ def FPN50():
 def FPN101():
     # [3,4,23,3] -> resnet101
     return FPN(Bottleneck, [3,4,23,3])
+
+
+if __name__ == "__main__":
+    import argparse
+    from torchsummary import summary
+
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    network_cli(parser)
+    args = parser.parse_args()
+    model = FPN50()
+    model = model.cuda()
+    summary(model,input_size=(3,480,480))
