@@ -41,7 +41,7 @@ def CallFromTrain(model,img,target_heatmap,target_paf):
     pass
 
 def get_mini_batch(multi_size,input_img):
-    pooling_factor=8
+    pooling_factor=4
     ''' return scale_num * 3 * h * w numby array '''
     useful_shape = []
     real_shape = []
@@ -69,8 +69,8 @@ def get_mini_batch(multi_size,input_img):
 
 
 def Get_Multiple_outputs(input_img,model,Scale,Filp_or_not,heatmap_num,paf_num,args):
-    base_size=368
-    pooling_factor=8
+    base_size=480
+    pooling_factor=4
     ''' mini_batch for test implement by using multi_scale img for one batch '''
     average_heatmap = np.zeros((input_img.shape[0], input_img.shape[1], heatmap_num)) # wrong 3 time
     average_paf = np.zeros((input_img.shape[0], input_img.shape[1], paf_num)) # wrong 3 time
@@ -89,8 +89,8 @@ def Get_Multiple_outputs(input_img,model,Scale,Filp_or_not,heatmap_num,paf_num,a
     ''' return the size to ori size and get the average value ''' 
     for n_times in range(len(Scale)):
         ''' this part will occur some error because int()'''
-        pafs_useful = pafs[n_times,:int(useful_shape[n_times][0] / 8),:int(useful_shape[n_times][1] / 8) ,:]
-        heatmaps_useful = heatmaps[n_times,:int(useful_shape[n_times][0] / 8),:int(useful_shape[n_times][1] / 8),:]
+        pafs_useful = pafs[n_times,:int(useful_shape[n_times][0] / 4),:int(useful_shape[n_times][1] / 4) ,:]
+        heatmaps_useful = heatmaps[n_times,:int(useful_shape[n_times][0] / 4),:int(useful_shape[n_times][1] / 4),:]
 
         pafs_up = cv2.resize(pafs_useful, None, fx = pooling_factor, fy = pooling_factor, interpolation=cv2.INTER_CUBIC)
         heatmaps_up = cv2.resize(heatmaps_useful, None, fx = pooling_factor, fy = pooling_factor, interpolation=cv2.INTER_CUBIC)
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     import numpy as np
     from pycocotools.coco import COCO
     from collections import OrderedDict
-    from .network.openpose import CMUnet,CMU_old 
+    from .network.openpose import resnet_op 
     
     #config parameters
     print("remember to check your forward return value of your new network")
@@ -196,19 +196,19 @@ if __name__ == "__main__":
     parser.add_argument('--scale',default=[1],type=list)
     parser.add_argument('--heatmap_num',default=19,type=int)
     parser.add_argument('--paf_num',default=38,type=int)
-    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_76.pth",
+    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/train_final.pth",
                         type=str)
     parser.add_argument('--eval_dir',default="/home/ikenaga/Public/coco_dataset/images/val2017",type=str)
     parser.add_argument('--ann_dir',default="/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_val2017.json",type=str)
     parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
                         type=str)
-    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/val_76_old.json",
+    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/fpn_8_1.json",
                         type=str)
     parser.add_argument('--thre1', default=0.1, type=float)
     parser.add_argument('--thre2', default=0.05, type=float)
     parser.add_argument('--thre3', default=0.5, type=float)
-    parser.add_argument('--pooling_factor', default=8, type=int)
-    parser.add_argument("--base_size",default=368,type=int) 
+    parser.add_argument('--pooling_factor', default=4, type=int)
+    parser.add_argument("--base_size",default=480,type=int) 
     parser.add_argument('--filp', default=False, type=bool)                  
     parser.add_argument('--cal_score', default=True, type=bool)
     parser.add_argument('--preprocess', default=True, type=bool)
@@ -216,8 +216,9 @@ if __name__ == "__main__":
 
     outputs = []
     #load model
-    model = CMU_old.CMUnetwork(args)
-    state_dict = torch.load(args.weight_for_eval)
+    model = resnet_op.FPN50()
+    checkpoint = torch.load(args.weight_for_eval)
+    state_dict = checkpoint['model_state']
     try:
         model.load_state_dict(state_dict)
     except:
