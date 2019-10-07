@@ -122,3 +122,23 @@ def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
         loss['final'] += loss['stage_1_{}'.format(i)]
         loss['final'] += loss['stage_2_{}'.format(i)] 
     return loss
+
+def get_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,wei_con):
+    ''' input： the output of CMU net
+                the target img
+                the mask for unanno-file
+                config control the weight of loss
+    '''
+    loss = {}
+    loss['final'] = 0
+
+  
+    criterion = nn.MSELoss(size_average=True).cuda() 
+    #else:
+    for i in range(6):
+
+        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i] * paf_mask,target_paf * paf_mask)
+        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask)
+        loss['final'] += loss['stage_1_{}'.format(i)]
+        loss['final'] += loss['stage_2_{}'.format(i)] 
+    return loss
