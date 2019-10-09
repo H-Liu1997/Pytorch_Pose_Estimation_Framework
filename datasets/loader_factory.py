@@ -1,11 +1,12 @@
 from . import cmu_mainloader
+from . import pifpaf_mainloader
 
 def loader_cli(parser,loader_name):
     if loader_name == 'CMU':  
         print('choose CMU 120k/4k data, load parameters...')
         cmu_mainloader.loader_cli(parser)
     elif loader_name == 'OpenPifPaf':
-        pass
+        pifpaf_mainloader.train_cli(parser)
     elif loader_name == 'CMU_single':
         pass
     else: print('loader name error, please choose CMU, OpenPifPaf or CMU_single')
@@ -36,7 +37,8 @@ def loader_factory(args):
         train_factory_cmu = cmu_mainloader.train_factory
         return train_factory_cmu
     elif loader_name == 'OpenPifPaf':
-        pass
+        train_factory_pifpaf = pifpaf_mainloader.train_factory
+        return train_factory_pifpaf
     elif loader_name == 'CMU_single':
         pass
     else: print('loader name error, please choose CMU, OpenPifPaf or CMU_single')    

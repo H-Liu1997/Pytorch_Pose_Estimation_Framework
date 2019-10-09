@@ -26,9 +26,9 @@ def loader_cli(parser):
     group.add_argument('--json_path',       default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/json/COCO.json')
     group.add_argument('--mask_dir',        default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/mask2014')
     group.add_argument('--data_dir',        default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/')
-    group.add_argument('--feat_stride',     default=8,      type=int)
+    group.add_argument('--feat_stride',     default=4,      type=int)
     group.add_argument('--loader_workers',  default=16,     type=int,help='number of workers for data loading')
-    group.add_argument('--img_size',        default=368,    type=int)
+    group.add_argument('--img_size',        default=384,    type=int)
 
 
 class Cocokeypoints(Dataset):
@@ -323,7 +323,7 @@ def train_factory(type_,args):
     params_transform['flip_prob'] = 0.5
 
     params_transform['np'] = 56
-    params_transform['sigma'] = 7.0
+    params_transform['sigma'] = 3.0
     params_transform['limb_width'] = 1. 
     preprocess = 'vgg'
    
