@@ -11,19 +11,9 @@ from torchvision.transforms import ToTensor
 import json
 
 from .encoder import heatmap,paf
-from .encoder.ImageAugmentation import (aug_croppad, aug_flip,
-                                                  aug_rotate, aug_scale)
-from .encoder.preprocessing import (inception_preprocess,
-                                              rtpose_preprocess,
-                                              ssd_preprocess, vgg_preprocess)
+from .encoder.ImageAugmentation import (aug_croppad, aug_flip, aug_rotate, aug_scale)
+from .encoder.preprocessing import (rtpose_preprocess,vgg_preprocess)
 
-'''
-train2014  : 82783 simages
-val2014    : 40504 images
-
-first 2644 of val2014 marked by 'isValidation = 1', as our minval dataset.
-So all training data have 82783+40504-2644 = 120643 samples
-'''
 
 def loader_cli(parser):
     ''' some parameters of dataloader
@@ -31,30 +21,24 @@ def loader_cli(parser):
         2. training img size
         3. training img number
         4. some augment setting
-        ...
     '''
-
     group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--root',       default='./dataset/COCO/annotations/person_keypoints_train2017.json')
-    group.add_argument('--mask_dir',     default='./dataset/COCO/images/train2017')
-    group.add_argument('--index_list',         default='./dataset/COCO/annotations/person_keypoints_val2017.json')
-    group.add_argument('--data',       default='./dataset/COCO/images/val2017')
-    group.add_argument('--feat_stride',    default=8, type=int,
-                       help='number of images to sample')
-    group.add_argument('--loader_workers',      default=16, type=int,
-                       help='number of workers for data loading')
-    group.add_argument('--inp_size',         default=36, type=int,
-                        help='square edge of input images')
-
+    group.add_argument('--root',            default='./dataset/COCO/annotations/person_keypoints_train2017.json')
+    group.add_argument('--mask_dir',        default='./dataset/COCO/images/train2017')
+    group.add_argument('--index_list',      default='./dataset/COCO/annotations/person_keypoints_val2017.json')
+    group.add_argument('--data',            default='./dataset/COCO/images/val2017')
+    group.add_argument('--feat_stride',     default=8,      type=int)
+    group.add_argument('--loader_workers',  default=16,     type=int,help='number of workers for data loading')
+    group.add_argument('--img_size',        default=368,    type=int)
 
 
 class Cocokeypoints(Dataset):
-    def __init__(self, root, mask_dir, index_list, data, inp_size, feat_stride, preprocess='vgg', transform=None,
+    def __init__(self, root, mask_dir, index_list, data, img_size, feat_stride, preprocess='vgg', transform=None,
                  target_transform=None, params_transform=None):
 
         self.params_transform = params_transform
-        self.params_transform['crop_size_x'] = inp_size
-        self.params_transform['crop_size_y'] = inp_size
+        self.params_transform['crop_size_x'] = img_size
+        self.params_transform['crop_size_y'] = img_size
         self.params_transform['stride'] = feat_stride
 
         # add preprocessing as a choice, so we don't modify it manually.
@@ -176,6 +160,7 @@ class Cocokeypoints(Dataset):
 
         stride = self.params_transform['stride']
         mode = self.params_transform['mode']
+        sigma = self.params_transform['sigma']
         crop_size_y = self.params_transform['crop_size_y']
         crop_size_x = self.params_transform['crop_size_x']
         num_parts = self.params_transform['np']
@@ -201,13 +186,13 @@ class Cocokeypoints(Dataset):
                 center = meta['joint_self'][i, :2]
                 gaussian_map = heatmaps[:, :, i]
                 heatmaps[:, :, i] = heatmap.putGaussianMaps(
-                    center, gaussian_map, params_transform=self.params_transform)
+                    center, gaussian_map, sigma, grid_y, grid_x, stride)
             for j in range(nop):
                 if (meta['joint_others'][j, i, 2] <= 1):
                     center = meta['joint_others'][j, i, :2]
                     gaussian_map = heatmaps[:, :, i]
                     heatmaps[:, :, i] = heatmap.putGaussianMaps(
-                        center, gaussian_map, params_transform=self.params_transform)
+                        center, gaussian_map, sigma, grid_y, grid_x, stride)
         # pafs
         mid_1 = [2, 9, 10, 2, 12, 13, 2, 3, 4,
                  3, 2, 6, 7, 6, 2, 1, 1, 15, 16]
@@ -228,7 +213,7 @@ class Cocokeypoints(Dataset):
                 pafs[:, :, 2 * i:2 * i + 2], count = paf.putVecMaps(centerA=centerA,
                                                                 centerB=centerB,
                                                                 accumulate_vec_map=vec_map,
-                                                                count=count, params_transform=self.params_transform)
+                                                                count=count, grid_y, grid_x, stride)
             for j in range(nop):
                 if (meta['joint_others'][j, mid_1[i] - 1, 2] <= 1 and meta['joint_others'][j, mid_2[i] - 1, 2] <= 1):
                     centerA = meta['joint_others'][j, mid_1[i] - 1, :2]
@@ -237,7 +222,7 @@ class Cocokeypoints(Dataset):
                     pafs[:, :, 2 * i:2 * i + 2], count = paf.putVecMaps(centerA=centerA,
                                                                     centerB=centerB,
                                                                     accumulate_vec_map=vec_map,
-                                                                    count=count, params_transform=self.params_transform)
+                                                                    count=count, grid_y, grid_x, stride)
         # background
         heatmaps[:, :, -
                  1] = np.maximum(1 - np.max(heatmaps[:, :, :18], axis=2), 0.)
@@ -284,12 +269,7 @@ class Cocokeypoints(Dataset):
 
         elif self.preprocess == 'vgg':
             img = vgg_preprocess(img)
-
-        elif self.preprocess == 'inception':
-            img = inception_preprocess(img)
-
-        elif self.preprocess == 'ssd':
-            img = ssd_preprocess(img)
+        else: print('preprocess type error')
 
         img = torch.from_numpy(img)
         heatmaps = torch.from_numpy(
@@ -344,7 +324,7 @@ def train_factory(type_,args):
     if type_ == "train":
         data_ = Cocokeypoints(root=args.data_dir, mask_dir=args.mask_dir,
                               index_list=train_indexes,
-                              data=data, inp_size=args.inp_size, feat_stride=args.feat_stride,
+                              data=data, img_size=args.img_size, feat_stride=args.feat_stride,
                               preprocess=preprocess, transform=ToTensor(), params_transform=params_transform)
                   
         train_loader = DataLoader(data_, shuffle=True, batch_size=args.batch_size,
@@ -354,7 +334,7 @@ def train_factory(type_,args):
     else:
         data_ = Cocokeypoints(root=args.data_dir, mask_dir=args.mask_dir,
                               index_list=val_indexes,
-                              data=data, inp_size=args.inp_size, feat_stride=args.feat_stride,
+                              data=data, img_size=args.img_size, feat_stride=args.feat_stride,
                               preprocess=preprocess, transform=ToTensor(), params_transform=params_transform)
 
         val_loader = DataLoader(data_, shuffle=False, batch_size=args.batch_size,

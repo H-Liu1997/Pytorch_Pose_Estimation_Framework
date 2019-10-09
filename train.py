@@ -15,8 +15,9 @@ import torch.utils.model_zoo as model_zoo
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .datasets import mainloader
-from .network.openpose import CMU_BN_net, CMUnet_loss, CMU_old
+from .datasets import loader_factory
+from .network.openpose import CMUnet_loss, CMU_old
+#from .network import loss_factory,net_factory
 from . import evaluate
 
 
@@ -39,32 +40,36 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    CMU_BN_net.network_cli(parser)
+    parser.add_argument('--name',           default='new_mask_adam',  type=str)
+    parser.add_argument('--net',            default='new_mask_adam',  type=str)
+    parser.add_argument('--loss',           default='new_mask_adam',  type=str)
+    parser.add_argument('--loader',         default='CMU',            type=str)
+
+    CMU_old.network_cli(parser)
     CMUnet_loss.loss_cli(parser)
-    mainloader.loader_cli(parser)
+    #mainloader.loader_cli(parser)
     evaluate.val_cli(parser)
     
-    parser.add_argument('--name',           default='new_mask_adam',  type=str)
     # trian setting
     parser.add_argument('--pre_train',      default=0,          type=int)
     parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
-    parser.add_argument('--per_batch',      default=8,          type=int,       help='batch size per gpu')
+    parser.add_argument('--per_batch',      default=5,          type=int,       help='batch size per gpu')
     parser.add_argument('--gpu',            default=[0,1],      type=list,      help="gpu number")
     
     # optimizer
-    parser.add_argument('--opt_type',       default='adam',     type=str,       help='sgd or adam')
-    parser.add_argument('--lr',             default=1e-4,       type=float)
-    parser.add_argument('--w_decay',        default=0.,         type=float)
+    parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
+    parser.add_argument('--lr',             default=4e-5,       type=float)
+    parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
     parser.add_argument('--beta2',          default=0.999,      type=float)
     parser.add_argument('--nesterov',       default=False,      type=bool,      help='for sgd')
 
     parser.add_argument('--auto_lr',        default=True,       type=bool,      help='using auto lr control or not')
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
-    parser.add_argument('--factor',         default=0.1,        type=float,     help='divide factor of lr')
+    parser.add_argument('--factor',         default=0.333,      type=float,     help='divide factor of lr')
     parser.add_argument('--patience',       default=3,          type=int)
-    parser.add_argument('--step',           default=[90,110],   type=list)
+    parser.add_argument('--step',           default=[17,34,51,68,85,102],       type=list)
 
     # others
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
@@ -84,11 +89,14 @@ def main():
     save_config(args)
     
     '''data portion'''
-    train_loader = mainloader.train_factory('train',args)
-    val_loader = mainloader.train_factory('val',args)
+    train_factory = loader_factory.loader_factory(args)
+    train_loader = train_factory('train',args)
+    val_loader = train_factory('val',args)
     
     '''network portion'''
-    model = CMU_BN_net.CMUnetwork(args)
+    model = CMU_old.CMUnetwork(args)
+    # network = net_factory.net_factory(args.net)
+    # model = network(args)
     # multi_gpu and cuda, will occur some bug when inner some function
     model = torch.nn.DataParallel(model,args.gpu).cuda()
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
