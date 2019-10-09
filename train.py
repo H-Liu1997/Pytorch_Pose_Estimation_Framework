@@ -288,8 +288,35 @@ def optimizer_settings(freeze_or_not,model,args):
         for param in model.module.parameters():
             param.requires_grad = True
         trainable_vars = [param for param in model.parameters() if param.requires_grad]
+        lrnormal = model.block_0.parameters()
+        lr4plus11 = model.block_1_1.parameters()
+        lr4plus12 = model.block_1_2.parameters()
+
+        lr4plus21 = model.block_2_1.parameters()
+        lr4plus22 = model.block_2_2.parameters()
+
+        lr4plus31 = model.block_3_1.parameters()
+        lr4plus32 = model.block_3_2.parameters()
+
+        lr4plus41 = model.block_4_1.parameters()
+        lr4plus42 = model.block_4_2.parameters()
+
+        lr4plus51 = model.block_5_1.parameters()
+        lr4plus52 = model.block_5_2.parameters()
+
+        lr4plus61 = model.block_6_1.parameters()
+        lr4plus62 = model.block_6_2.parameters()
         if args.opt_type == 'sgd':
-            optimizer = torch.optim.SGD(trainable_vars,
+            optimizer = torch.optim.SGD([{'params': lrnormal},{'params': lr4plus11},{'params': lr4plus12},
+                                    {'params': lr4plus21,'lr': args.lr*4},{'params': lr4plus22,'lr': args.lr*4},
+                                    {'params': lr4plus31,'lr': args.lr*4},
+                                    {'params': lr4plus32,'lr': args.lr*4},
+                                    {'params': lr4plus41,'lr': args.lr*4},
+                                    {'params': lr4plus42,'lr': args.lr*4},
+                                    {'params': lr4plus51,'lr': args.lr*4},
+                                    {'params': lr4plus52,'lr': args.lr*4},
+                                    {'params': lr4plus61,'lr': args.lr*4},
+                                    {'params': lr4plus62,'lr': args.lr*4}],
                                     lr = args.lr,
                                     momentum = args.beta1,
                                     weight_decay = args.w_decay,

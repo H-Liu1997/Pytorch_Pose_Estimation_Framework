@@ -74,15 +74,18 @@ def get_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     
     return loss
 
-
+class My_loss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, x, y, batch_size):
+        return torch.sum(torch.pow((x - y), 2))/batch_size/2
+        
 def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
-    ''' input： the output of CMU net
-                the target img
-                the mask for unanno-file
-                config control the weight of loss
-    '''
+   
     loss = {}
     loss['final'] = 0
+    batch_size = args.batch_size
     
     # weights = torch.ones([6,args.paf_num+args.heatmap_num])
     
@@ -92,8 +95,8 @@ def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     #     for i in range(args.paf_num+args.heatmap_num):
     #         weights[0][i] = wei_con[0][i]
     # weights = weights.cuda()
-    
-    criterion = nn.MSELoss(size_average=True).cuda()
+    criterion = My_loss()
+    #criterion = nn.MSELoss(reduction='sum').cuda()
 
     #if args.auto_weight == True:
         # for i in range(args.paf_stage):
@@ -117,8 +120,8 @@ def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     
     #else:
     for i in range(6):
-        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i],target_paf)
-        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1],target_heat)
+        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i],target_paf,batch_size)
+        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1],target_heat,batch_size)
         loss['final'] += loss['stage_1_{}'.format(i)]
         loss['final'] += loss['stage_2_{}'.format(i)] 
     return loss
