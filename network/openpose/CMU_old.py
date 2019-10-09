@@ -115,8 +115,8 @@ class conv(nn.Module):
         output = self.relu(output)
         return output
     def initi(self):
-        init.kaiming_normal_(self.con_layer.weight, a=0, mode='fan_in', nonlinearity='relu')
-        #init.normal_(self.con_layer.weight, std=0.01)
+        #init.kaiming_normal_(self.con_layer.weight, a=0, mode='fan_in', nonlinearity='relu')
+        init.normal_(self.con_layer.weight, std=0.01)
         if self.con_layer.bias is not None:  
             init.constant_(self.con_layer.bias, 0.0)
 
@@ -146,8 +146,8 @@ class stage_1_block(nn.Module):
         return output
 
     def initi(self):
-        init.kaiming_normal_(self.conv5.weight, a=0, mode='fan_in', nonlinearity='relu')
-        #init.normal_(self.conv5.weight, std=0.01)
+        #init.kaiming_normal_(self.conv5.weight, a=0, mode='fan_in', nonlinearity='relu')
+        init.normal_(self.conv5.weight, std=0.01)
         if self.conv5.bias is not None:  
             init.constant_(self.conv5.bias, 0.0)
 
@@ -180,8 +180,8 @@ class stage_n_block(nn.Module):
         return output
 
     def initi(self):
-        init.kaiming_normal_(self.conv7.weight, a=0, mode='fan_in', nonlinearity='relu')
-        #init.normal_(self.conv7.weight, std=0.01)
+        #init.kaiming_normal_(self.conv7.weight, a=0, mode='fan_in', nonlinearity='relu')
+        init.normal_(self.conv7.weight, std=0.01)
         if self.conv7.bias is not None:  
             init.constant_(self.conv7.bias, 0.0)
 

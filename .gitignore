@@ -5,3 +5,26 @@ ForSave/log/op_small_size/events.out.tfevents.1569842661.ubuntu
 ForSave/log/op_small_size/train_val_loss/train loss/events.out.tfevents.1569846893.ubuntu
 ForSave/weight/new_mask_adam/val_final.pth
 ForSave/weight/new_mask_adam/train_final.pth
+datasets/encoder/__pycache__/__init__.cpython-36.pyc
+EvalTools/__pycache__/__init__.cpython-36.pyc
+EvalTools/__pycache__/eval_trans.cpython-36.pyc
+EvalTools/decoder/__pycache__/__init__.cpython-36.pyc
+EvalTools/decoder/__pycache__/post.cpython-36.pyc
+ForSave/log/op_vgg/events.out.tfevents.1570604232.IKE-SC-37
+ForSave/log/op_vgg/events.out.tfevents.1570604659.IKE-SC-37
+ForSave/log/op_vgg/events.out.tfevents.1570609000.IKE-SC-37
+ForSave/weight/pretrain/vgg19-dcbb9e9d.pth
+__pycache__/__init__.cpython-36.pyc
+__pycache__/evaluate.cpython-36.pyc
+__pycache__/train.cpython-36.pyc
+datasets/__pycache__/__init__.cpython-36.pyc
+datasets/__pycache__/cmu_mainloader.cpython-36.pyc
+datasets/__pycache__/loader_factory.cpython-36.pyc
+datasets/encoder/__pycache__/ImageAugmentation.cpython-36.pyc
+datasets/encoder/__pycache__/heatmap.cpython-36.pyc
+datasets/encoder/__pycache__/paf.cpython-36.pyc
+datasets/encoder/__pycache__/preprocessing.cpython-36.pyc
+network/__pycache__/__init__.cpython-36.pyc
+network/openpose/__pycache__/CMU_old.cpython-36.pyc
+network/openpose/__pycache__/CMUnet_loss.cpython-36.pyc
+network/openpose/__pycache__/__init__.cpython-36.pyc

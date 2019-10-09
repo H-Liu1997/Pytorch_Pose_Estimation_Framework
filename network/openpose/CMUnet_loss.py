@@ -134,14 +134,13 @@ def get_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,
     '''
     loss = {}
     loss['final'] = 0
-
-  
-    criterion = nn.MSELoss(size_average=True).cuda() 
+    batch_size = args.batch_size
+    criterion = My_loss() 
     #else:
     for i in range(6):
 
-        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i] * paf_mask,target_paf * paf_mask)
-        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask)
+        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i] * paf_mask,target_paf * paf_mask, batch_size)
+        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask, batch_size)
         loss['final'] += loss['stage_1_{}'.format(i)]
         loss['final'] += loss['stage_2_{}'.format(i)] 
     return loss

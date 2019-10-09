@@ -23,10 +23,9 @@ def loader_cli(parser):
         4. some augment setting
     '''
     group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--root',            default='./dataset/COCO/annotations/person_keypoints_train2017.json')
-    group.add_argument('--mask_dir',        default='./dataset/COCO/images/train2017')
-    group.add_argument('--index_list',      default='./dataset/COCO/annotations/person_keypoints_val2017.json')
-    group.add_argument('--data',            default='./dataset/COCO/images/val2017')
+    group.add_argument('--json_path',       default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/json/COCO.json')
+    group.add_argument('--mask_dir',        default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/mask2014')
+    group.add_argument('--data_dir',        default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/')
     group.add_argument('--feat_stride',     default=8,      type=int)
     group.add_argument('--loader_workers',  default=16,     type=int,help='number of workers for data loading')
     group.add_argument('--img_size',        default=368,    type=int)
@@ -213,7 +212,9 @@ class Cocokeypoints(Dataset):
                 pafs[:, :, 2 * i:2 * i + 2], count = paf.putVecMaps(centerA=centerA,
                                                                 centerB=centerB,
                                                                 accumulate_vec_map=vec_map,
-                                                                count=count, grid_y, grid_x, stride)
+                                                                count=count, grid_y = grid_y, 
+                                                                    grid_x = grid_x, 
+                                                                    stride =stride)
             for j in range(nop):
                 if (meta['joint_others'][j, mid_1[i] - 1, 2] <= 1 and meta['joint_others'][j, mid_2[i] - 1, 2] <= 1):
                     centerA = meta['joint_others'][j, mid_1[i] - 1, :2]
@@ -222,7 +223,9 @@ class Cocokeypoints(Dataset):
                     pafs[:, :, 2 * i:2 * i + 2], count = paf.putVecMaps(centerA=centerA,
                                                                     centerB=centerB,
                                                                     accumulate_vec_map=vec_map,
-                                                                    count=count, grid_y, grid_x, stride)
+                                                                    count=count, grid_y = grid_y, 
+                                                                    grid_x = grid_x, 
+                                                                    stride =stride)
         # background
         heatmaps[:, :, -
                  1] = np.maximum(1 - np.max(heatmaps[:, :, :18], axis=2), 0.)
@@ -283,11 +286,13 @@ class Cocokeypoints(Dataset):
         return img, heatmaps, heat_mask, pafs, paf_mask
 
     def __len__(self):
+        return self.numSample
+
 
 
 def train_factory(type_,args):
     ''' return train or val or pertrain data '''
-
+    #print('useme')
     with open(args.json_path) as data_file:
         data_this = json.load(data_file)
         data = data_this['root']
@@ -305,7 +310,7 @@ def train_factory(type_,args):
     params_transform['mode'] = 5
     # === aug_scale ===
     params_transform['scale_min'] = 0.5
-    params_transform['scale_max'] = 1.1
+    params_transform['scale_max'] = 0.9
     params_transform['scale_prob'] = 1
     params_transform['target_dist'] = 0.6
     # === aug_rotate ===
@@ -320,6 +325,7 @@ def train_factory(type_,args):
     params_transform['np'] = 56
     params_transform['sigma'] = 7.0
     params_transform['limb_width'] = 1. 
+    preprocess = 'vgg'
    
     if type_ == "train":
         data_ = Cocokeypoints(root=args.data_dir, mask_dir=args.mask_dir,
@@ -330,6 +336,7 @@ def train_factory(type_,args):
         train_loader = DataLoader(data_, shuffle=True, batch_size=args.batch_size,
                                  num_workers=args.loader_workers, #collate_fn=collate_images_anns_meta,
                                  pin_memory=True, drop_last=True)
+        print('train dataset len:{}'.format(len(train_loader.dataset)))
         return train_loader
     else:
         data_ = Cocokeypoints(root=args.data_dir, mask_dir=args.mask_dir,
@@ -340,4 +347,5 @@ def train_factory(type_,args):
         val_loader = DataLoader(data_, shuffle=False, batch_size=args.batch_size,
                                  num_workers=args.loader_workers, 
                                  pin_memory=True, drop_last=False)
+        print('val dataset len:{}'.format(len(val_loader.dataset)))
         return val_loader

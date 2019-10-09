@@ -40,26 +40,26 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='new_mask_adam',  type=str)
+    parser.add_argument('--name',           default='op_vgg',  type=str)
     parser.add_argument('--net',            default='new_mask_adam',  type=str)
     parser.add_argument('--loss',           default='new_mask_adam',  type=str)
     parser.add_argument('--loader',         default='CMU',            type=str)
 
     CMU_old.network_cli(parser)
     CMUnet_loss.loss_cli(parser)
-    #mainloader.loader_cli(parser)
+    loader_factory.loader_cli(parser,"CMU")
     evaluate.val_cli(parser)
     
     # trian setting
     parser.add_argument('--pre_train',      default=0,          type=int)
     parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
-    parser.add_argument('--per_batch',      default=5,          type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0,1],      type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=8,         type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0],        type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
-    parser.add_argument('--lr',             default=4e-5,       type=float)
+    parser.add_argument('--lr',             default=2e-5,       type=float)
     parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
     parser.add_argument('--beta2',          default=0.999,      type=float)
@@ -69,7 +69,7 @@ def cli():
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
     parser.add_argument('--factor',         default=0.333,      type=float,     help='divide factor of lr')
     parser.add_argument('--patience',       default=3,          type=int)
-    parser.add_argument('--step',           default=[17,34,51,68,85,102],       type=list)
+    parser.add_argument('--step',           default=[9,18,27,36],       type=list)
 
     # others
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
@@ -296,24 +296,24 @@ def optimizer_settings(freeze_or_not,model,args):
         for param in model.module.parameters():
             param.requires_grad = True
         trainable_vars = [param for param in model.parameters() if param.requires_grad]
-        lrnormal = model.block_0.parameters()
-        lr4plus11 = model.block_1_1.parameters()
-        lr4plus12 = model.block_1_2.parameters()
+        lrnormal = model.module.block_0.parameters()
+        lr4plus11 = model.module.block_1_1.parameters()
+        lr4plus12 = model.module.block_1_2.parameters()
 
-        lr4plus21 = model.block_2_1.parameters()
-        lr4plus22 = model.block_2_2.parameters()
+        lr4plus21 = model.module.block_2_1.parameters()
+        lr4plus22 = model.module.block_2_2.parameters()
 
-        lr4plus31 = model.block_3_1.parameters()
-        lr4plus32 = model.block_3_2.parameters()
+        lr4plus31 = model.module.block_3_1.parameters()
+        lr4plus32 = model.module.block_3_2.parameters()
 
-        lr4plus41 = model.block_4_1.parameters()
-        lr4plus42 = model.block_4_2.parameters()
+        lr4plus41 = model.module.block_4_1.parameters()
+        lr4plus42 = model.module.block_4_2.parameters()
 
-        lr4plus51 = model.block_5_1.parameters()
-        lr4plus52 = model.block_5_2.parameters()
+        lr4plus51 = model.module.block_5_1.parameters()
+        lr4plus52 = model.module.block_5_2.parameters()
 
-        lr4plus61 = model.block_6_1.parameters()
-        lr4plus62 = model.block_6_2.parameters()
+        lr4plus61 = model.module.block_6_1.parameters()
+        lr4plus62 = model.module.block_6_2.parameters()
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD([{'params': lrnormal},{'params': lr4plus11},{'params': lr4plus12},
                                     {'params': lr4plus21,'lr': args.lr*4},{'params': lr4plus22,'lr': args.lr*4},
@@ -372,16 +372,18 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     weight_con = weight_con.cuda()
     
     '''start training'''
-    for each_batch, (img, target_heatmap, target_paf) in enumerate(img_input):
+    for each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask) in enumerate(img_input):
         data_time = time.time() - begin
 
         img = img.cuda()
         target_heatmap = target_heatmap.cuda()
         target_paf = target_paf.cuda()
+        heat_mask = heat_mask.cuda()
+        paf_mask = paf_mask.cuda()
     
         _, saved_for_loss = model(img)
         #loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
-        loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+        loss = CMUnet_loss.get_mask_loss(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
 
         # for i in range(args.paf_stage):
         #     for j in range(args.paf_num):
@@ -396,7 +398,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
             #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
@@ -467,22 +469,24 @@ def val_one_epoch(img_input,model,epoch,args):
     weight_con = weight_con.cuda()
     
     with torch.no_grad():
-        for each_batch, (img, target_heatmap, target_paf) in enumerate(img_input):
+        for  each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask) in enumerate(img_input):
             # if each_batch == 5:
             #     break
             data_time = time.time() - begin
             img = img.cuda()
             target_heatmap = target_heatmap.cuda()
             target_paf = target_paf.cuda()
+            heat_mask = heat_mask.cuda()
+            paf_mask = paf_mask.cuda()
 
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
-                loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+                loss = CMUnet_loss.get_mask_loss(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
                 loss_val += loss['final']
         
             
             if each_batch % args.print_fre == 0:
-                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+                print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
                 #print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
             begin = time.time()
         loss_val /= len(img_input)        
