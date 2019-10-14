@@ -15,7 +15,7 @@ import torch.utils.model_zoo as model_zoo
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .datasets import loader_factory
+from .datasets import h5loader
 from .network.openpose import CMUnet_loss, CMU_old
 #from .network import loss_factory,net_factory
 from . import evaluate
@@ -50,7 +50,7 @@ def cli():
 
     CMU_old.network_cli(parser)
     CMUnet_loss.loss_cli(parser)
-    loader_factory.loader_cli(parser,"CMU")
+    #loader_factory.loader_cli(parser,"CMU")
     evaluate.val_cli(parser)
     
     # trian setting
@@ -62,8 +62,8 @@ def cli():
     
     # optimizer
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
-    parser.add_argument('--lr',             default=1.,       type=float)
-    parser.add_argument('--w_decay',        default=0.,       type=float)
+    parser.add_argument('--lr',             default=2e-5,       type=float)
+    parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
     parser.add_argument('--beta2',          default=0.999,      type=float)
     parser.add_argument('--nesterov',       default=False,      type=bool,      help='for sgd')
@@ -92,9 +92,9 @@ def main():
     save_config(args)
     
     '''data portion'''
-    train_factory = loader_factory.loader_factory(args)
-    train_loader = train_factory('train',args)
-    val_loader = train_factory('val',args)
+    #train_factory = loader_factory.loader_factory(args)
+    train_loader = h5loader.train_factory('train',args)
+    val_loader = h5loader.train_factory('val',args)
     
     '''network portion'''
     model = CMU_old.CMUnetwork(args)
@@ -335,28 +335,6 @@ def optimizer_settings(freeze_or_not,model,args):
                     #print(name[7:14])
                     decay_4.append(param)
         
-
-
-
-        #trainable_vars = [param for param in model.parameters() if param.requires_grad]
-        # lrnormal = model.module.block_0.parameters()
-        # lr4plus11 = model.module.block_1_1.parameters()
-        # lr4plus12 = model.module.block_1_2.parameters()
-
-        # lr4plus21 = model.module.block_2_1.parameters()
-        # lr4plus22 = model.module.block_2_2.parameters()
-
-        # lr4plus31 = model.module.block_3_1.parameters()
-        # lr4plus32 = model.module.block_3_2.parameters()
-
-        # lr4plus41 = model.module.block_4_1.parameters()
-        # lr4plus42 = model.module.block_4_2.parameters()
-
-        # lr4plus51 = model.module.block_5_1.parameters()
-        # lr4plus52 = model.module.block_5_2.parameters()
-
-        # lr4plus61 = model.module.block_6_1.parameters()
-        # lr4plus62 = model.module.block_6_2.parameters()
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD([{'params': decay_1},
                                     {'params': decay_4,'lr': args.lr*4},

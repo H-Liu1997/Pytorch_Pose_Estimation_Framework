@@ -95,7 +95,7 @@ def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     #     for i in range(args.paf_num+args.heatmap_num):
     #         weights[0][i] = wei_con[0][i]
     # weights = weights.cuda()
-    criterion = My_loss()
+    criterion = nn.MSELoss(size_average=True)
     #criterion = nn.MSELoss(reduction='sum').cuda()
 
     #if args.auto_weight == True:
@@ -135,12 +135,19 @@ def get_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,
     loss = {}
     loss['final'] = 0
     batch_size = args.batch_size
-    criterion = My_loss() 
+    criterion = My_loss().cuda()
     #else:
+    # print(target_heat.size())
+    # print(heat_mask.size())
+    # print(target_paf.size())
+    # print(paf_mask.size())
+    # print(saved_for_loss[0].size())
+    # print(saved_for_loss[1].size())
+
     for i in range(6):
 
-        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i] * paf_mask,target_paf * paf_mask, batch_size)
-        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask, batch_size)
+        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i] * paf_mask,target_paf * paf_mask,batch_size)
+        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask,batch_size)
         loss['final'] += loss['stage_1_{}'.format(i)]
         loss['final'] += loss['stage_2_{}'.format(i)] 
     return loss
