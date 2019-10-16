@@ -16,7 +16,7 @@ import numpy as np
 from tensorboardX import SummaryWriter
 
 from .datasets import h5loader
-from .network.openpose import CMUnet_loss, CMU_old
+from .network.openpose import CMUnet_loss, CMU_old,rtpose_vgg_
 #from .network import loss_factory,net_factory
 from . import evaluate
 
@@ -57,8 +57,8 @@ def cli():
     parser.add_argument('--pre_train',      default=0,          type=int)
     parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
-    parser.add_argument('--per_batch',      default=10,         type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0],        type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=5,         type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0,1],        type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
@@ -72,7 +72,7 @@ def cli():
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
     parser.add_argument('--factor',         default=0.333,      type=float,     help='divide factor of lr')
     parser.add_argument('--patience',       default=3,          type=int)
-    parser.add_argument('--step',           default=[11,22,33,44,55,66],       type=list)
+    parser.add_argument('--step',           default=[17,34,51,68],       type=list)
 
     # others
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
@@ -97,14 +97,22 @@ def main():
     val_loader = h5loader.train_factory('val',args)
     
     '''network portion'''
-    model = CMU_old.CMUnetwork(args)
+    
+    #model = CMU_old.CMUnetwork(args)
     # network = net_factory.net_factory(args.net)
     # model = network(args)
     # multi_gpu and cuda, will occur some bug when inner some function
+    model = rtpose_vgg_.get_model(trunk='vgg19')
+    #model = encoding.nn.DataParallelModel(model, device_ids=args.gpu_ids)
+    #model = torch.nn.DataParallel(model).cuda()
+    # load pretrained
+    #rtpose_vgg_.use_vgg(model, args.weight_pre, 'vgg19')
+
     model = torch.nn.DataParallel(model,args.gpu).cuda()
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
     start_epoch = load_checkpoints(model,optimizer,lr_scheduler,args)
-    
+    #start_epoch = 0
+
     '''val loss boundary and tensorboard path'''
     val_loss_min = np.inf
     lr = args.lr

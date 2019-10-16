@@ -7,9 +7,6 @@ import torch
 from torch.nn import init
 
 
-
-    
-
 def network_cli(parser):
     ''' network config
         1. paf and heatmap nums
@@ -21,6 +18,8 @@ def network_cli(parser):
     group.add_argument('--paf_num', default=38, type=int)
     #group.add_argument('--paf_stage', default=4, type=int)
     group.add_argument('--weight_vgg19', default='https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
+
+    
 class Debugnetwork(nn.Module):
     '''
     '''
@@ -67,31 +66,31 @@ class CMUnetwork(nn.Module):
         save_for_loss.append(output_1_2)
         #print('1-2:',output_1_1.size())
         #print('1-1:',output_1_2.size())
-        output_1_sum = torch.cat([output_0,output_1_1,output_1_2],1)
+        output_1_sum = torch.cat([output_1_1,output_1_2,output_0],1)
         #print('1-sum:',output_1_sum.size())
         output_2_1 = self.block_2_1(output_1_sum)
         output_2_2 = self.block_2_2(output_1_sum)
         save_for_loss.append(output_2_1)
         save_for_loss.append(output_2_2)
-        output_2_sum = torch.cat([output_0,output_2_1,output_2_2],1)
+        output_2_sum = torch.cat([output_2_1,output_2_2,output_0],1)
 
         output_3_1 = self.block_3_1(output_2_sum)
         output_3_2 = self.block_3_2(output_2_sum)
         save_for_loss.append(output_3_1)
         save_for_loss.append(output_3_2)
-        output_3_sum = torch.cat([output_0,output_3_1,output_3_2],1)
+        output_3_sum = torch.cat([output_3_1,output_3_2,output_0],1)
 
         output_4_1 = self.block_4_1(output_3_sum)
         output_4_2 = self.block_4_2(output_3_sum)
         save_for_loss.append(output_4_1)
         save_for_loss.append(output_4_2)
-        output_4_sum = torch.cat([output_0,output_4_1,output_4_2],1)
+        output_4_sum = torch.cat([output_4_1,output_4_2,output_0],1)
 
         output_5_1 = self.block_5_1(output_4_sum)
         output_5_2 = self.block_5_2(output_4_sum)
         save_for_loss.append(output_5_1)
         save_for_loss.append(output_5_2)
-        output_5_sum = torch.cat([output_0,output_5_1,output_5_2],1)
+        output_5_sum = torch.cat([output_5_1,output_5_2,output_0],1)
 
         output_6_1 = self.block_6_1(output_5_sum)
         output_6_2 = self.block_6_2(output_5_sum)
