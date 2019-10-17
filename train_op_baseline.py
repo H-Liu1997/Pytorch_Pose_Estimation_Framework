@@ -50,14 +50,18 @@ def cli():
     evaluate.val_cli(parser)
     
     # trian setting
-    parser.add_argument('--pre_train',      default=0,          type=int)
-    parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
+    #parser.add_argument('--pre_train',      default=1,          type=int)
+    parser.add_argument('--freeze_base',    default=1,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
-    parser.add_argument('--per_batch',      default=5,          type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0,1],      type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=10,          type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0],      type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
+    parser.add_argument('--pretrain_lr',    default=1e-6,       type=float)
+    parser.add_argument('--pre_w_decay',    default=5e-4,       type=float)
+    parser.add_argument('--pre_iters',      default=5e-4,       type=float)
+
     parser.add_argument('--lr',             default=2e-5,       type=float)
     parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
@@ -94,8 +98,6 @@ def main():
     
     '''network portion'''  
     model = network_factory.get_network(args)
-    # network = net_factory.net_factory(args.net)
-    # model = network(args)
     # multi_gpu and cuda, will occur some bug when inner some function
     model = torch.nn.DataParallel(model,args.gpu).cuda()
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
@@ -103,6 +105,7 @@ def main():
    
     '''val loss boundary and tensorboard path'''
     loss_function = loss_factory.get_loss_function(args)
+    #TODO loss function using same parameters
     val_loss_min = np.inf
     lr = args.lr
     writer = SummaryWriter(args.log_path)
@@ -115,16 +118,9 @@ def main():
         optimizer,lr_scheduler = optimizer_settings(True,model,args)
         
         for epoch in range(start_epoch,args.freeze_base):
-            loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function)
-            loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args,loss_function)
-            '''save to tensorboard'''
-            writer.add_scalars('train_val_loss_epoch', {'train loss': loss_train,
-                                                  'val loss': loss_val}, epoch)
-            writer.add_scalar('accuracy_epoch', accuracy_val, epoch)
-            writer.add_scalar('lr_epoch', lr, epoch)
+            loss_train = pretrain_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function)
+            writer.add_scalar('train_pre_loss', {'train loss': loss_train}, epoch)
             
-            val_loss_min = save_checkpoints(model,optimizer,lr_scheduler,epoch,loss_val,val_loss_min,args)
-    
     '''start normal training'''
     print("start normal training")
     if flag: 
@@ -293,16 +289,16 @@ def optimizer_settings(freeze_or_not,model,args):
         trainable_vars = [param for param in model.parameters() if param.requires_grad]
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD(trainable_vars,
-                                    lr = args.lr,
+                                    lr = args.pretrain_lr,
                                     momentum = args.beta1,
-                                    weight_decay = args.w_decay,
+                                    weight_decay = args.pre_w_decay,
                                     nesterov = args.nesterov)
         elif args.opt_type == 'adam':
             optimizer = torch.optim.Adam(trainable_vars, 
-                                        lr=args.lr, 
+                                        lr=args.pretrain_lr, 
                                         betas=(args.beta1, 0.999),
                                         eps=1e-08, 
-                                        weight_decay=args.w_decay,
+                                        weight_decay=args.pre_w_decay,
                                         amsgrad=False)
         else: print('opt type error, please choose sgd or adam')
 
@@ -358,6 +354,71 @@ def optimizer_settings(freeze_or_not,model,args):
     else: print('lr_scheduler type error, please choose ms or v_au')
     
     return optimizer,lr_scheduler
+
+
+def pretrain_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
+    """
+    Finish 
+    1.train for one epoch
+    2.print process, total loss, data time in terminal
+    3.save loss, lr, output img in tensorboard
+    Note   
+    1.you can change the save frequency 
+    """
+    loss_train = 0
+    model.train()
+    length = len(img_input)
+    print("iteration:",length)
+    train_time = time.time()
+    begin = time.time()
+    
+    '''loss control'''
+    loss_for_control = torch.zeros([6,args.paf_num+args.heatmap_num])
+    weight_con = torch.ones([1,args.paf_num+args.heatmap_num])
+    weight_con = weight_con.cuda()
+    
+    '''start training'''
+    for each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask) in enumerate(img_input):
+        if each_batch == args.pre_iters:
+            print("pretrain finish")
+            break
+        data_time = time.time() - begin
+        img = img.cuda()
+        target_heatmap = target_heatmap.cuda()
+        target_paf = target_paf.cuda()
+        heat_mask = heat_mask.cuda()
+        paf_mask = paf_mask.cuda()
+    
+        _, saved_for_loss = model(img)
+        #loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
+        loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
+
+        # for i in range(args.paf_stage):
+        #     for j in range(args.paf_num):
+        #         loss_for_control[i][j] += loss['stage_{0}_{1}'.format(i,j)]
+        # for i in range(len(saved_for_loss)-args.paf_stage):
+        #     for j in range(args.heatmap_num):
+        #         loss_for_control[i][j] += loss['stage_{0}_{1}'.format(i,j)]
+
+        optimizer.zero_grad()
+        loss["final"].backward()
+        optimizer.step()
+        loss_train += loss["final"]
+    
+        if each_batch % args.print_fre == 0:
+            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
+        begin = time.time()
+
+        '''for short test'''
+        # if each_batch == 5:
+        #     break
+    #weight_con = Online_weight_control(loss_for_control)
+    loss_train /= length
+    train_time = time.time() - train_time
+    print('total training time:',train_time)
+    return loss_train
 
 
 def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
