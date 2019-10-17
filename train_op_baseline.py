@@ -15,9 +15,9 @@ import torch.utils.model_zoo as model_zoo
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .datasets import h5loader
-from .network.openpose import CMUnet_loss, CMU_old,rtpose_vgg_
-#from .network import loss_factory,net_factory
+from .datasets import loader_factory 
+from .network import loss_factory
+from .network import network_factory
 from . import evaluate
 
 
@@ -40,25 +40,26 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_repose11_no_decay',  type=str)
-    parser.add_argument('--net',            default='CMU_old',  type=str)
-    parser.add_argument('--loss',           default='mask_after_gt_alreadycheck',  type=str)
-    parser.add_argument('--loader',         default='CMU',            type=str)
-    parser.add_argument('--multi_lr',       default='4 kinds use',            type=str)
-    parser.add_argument('--bias_decay',     default='use 0 for bias',            type=str)
-    parser.add_argument('--pre_',           default='rtpose',            type=str)
+    parser.add_argument('--name',           default='op_test',         type=str)
+    parser.add_argument('--net',            default='CMU_old',                      type=str)
+    parser.add_argument('--loss',           default='CMU_2b_mask',                  type=str)
+    parser.add_argument('--loader',         default='CMU_117K',                     type=str)
 
-    CMU_old.network_cli(parser)
-    CMUnet_loss.loss_cli(parser)
-    #loader_factory.loader_cli(parser,"CMU")
+    parser.add_argument('--multi_lr',       default='4 kinds use',                  type=str)
+    parser.add_argument('--bias_decay',     default='use 0 for bias',               type=str)
+    parser.add_argument('--pre_',           default='rtpose',                       type=str)
+
+    network_factory.net_cli(parser,'CMU_old')
+    loss_factory.loss_cli(parser,'CMU_2b_mask')
+    loader_factory.loader_cli(parser,"CMU_117K")
     evaluate.val_cli(parser)
     
     # trian setting
     parser.add_argument('--pre_train',      default=0,          type=int)
     parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
-    parser.add_argument('--per_batch',      default=5,         type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0,1],        type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=5,          type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0,1],      type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
@@ -78,7 +79,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_repose11_no_/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_test/train_final.pth")
     parser.add_argument('--print_fre',      default=5,          type=int)
     parser.add_argument('--val_type',       default=0,          type=int)
     
@@ -92,28 +93,21 @@ def main():
     save_config(args)
     
     '''data portion'''
-    #train_factory = loader_factory.loader_factory(args)
-    train_loader = h5loader.train_factory('train',args)
-    val_loader = h5loader.train_factory('val',args)
+    train_factory = loader_factory.loader_factory(args)
+    train_loader = train_factory('train',args)
+    val_loader = train_factory('val',args)
     
-    '''network portion'''
-    
-    #model = CMU_old.CMUnetwork(args)
+    '''network portion'''  
+    model = network_factory.get_network(args)
     # network = net_factory.net_factory(args.net)
     # model = network(args)
     # multi_gpu and cuda, will occur some bug when inner some function
-    model = rtpose_vgg_.get_model(trunk='vgg19')
-    #model = encoding.nn.DataParallelModel(model, device_ids=args.gpu_ids)
-    #model = torch.nn.DataParallel(model).cuda()
-    # load pretrained
-    #rtpose_vgg_.use_vgg(model, args.weight_pre, 'vgg19')
-
     model = torch.nn.DataParallel(model,args.gpu).cuda()
     optimizer,lr_scheduler = optimizer_settings(False,model,args)
     start_epoch = load_checkpoints(model,optimizer,lr_scheduler,args)
-    #start_epoch = 0
-
+   
     '''val loss boundary and tensorboard path'''
+    loss_function = loss_factory.get_loss_function(args)
     val_loss_min = np.inf
     lr = args.lr
     writer = SummaryWriter(args.log_path)
@@ -126,8 +120,8 @@ def main():
         optimizer,lr_scheduler = optimizer_settings(True,model,args)
         
         for epoch in range(start_epoch,args.freeze_base):
-            loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
-            loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
+            loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function)
+            loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args,loss_function)
             '''save to tensorboard'''
             writer.add_scalars('train_val_loss_epoch', {'train loss': loss_train,
                                                   'val loss': loss_val}, epoch)
@@ -142,8 +136,8 @@ def main():
         optimizer,lr_scheduler = optimizer_settings(False,model,args)
         start_epoch = args.freeze_base
     for epoch in range(start_epoch,args.epochs):
-        loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args)
-        loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args)
+        loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function)
+        loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args,loss_function)
 
         if args.auto_lr:
             lr_scheduler.step(loss_val)
@@ -218,8 +212,6 @@ def save_config(args):
             f.write(str1)
             str1 = 'pre_: ' +  str(args.pre_) + '\n'
             f.write(str1)
-
-
 
     
 def load_checkpoints(model,optimizer,lr_scheduler,args):
@@ -373,7 +365,7 @@ def optimizer_settings(freeze_or_not,model,args):
     return optimizer,lr_scheduler
 
 
-def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
+def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
     """
     Finish 
     1.train for one epoch
@@ -406,7 +398,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args):
     
         _, saved_for_loss = model(img)
         #loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
-        loss = CMUnet_loss.get_mask_loss(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
+        loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
 
         # for i in range(args.paf_stage):
         #     for j in range(args.paf_num):
@@ -470,7 +462,7 @@ def print_to_terminal_old(epoch,current_step,len_of_input,loss,loss_avg,datatime
     print(str_print)
 
 
-def val_one_epoch(img_input,model,epoch,args):
+def val_one_epoch(img_input,model,epoch,args,loss_function):
     """ 
     val_type: 
     0.only calculate val_loss
@@ -504,7 +496,7 @@ def val_one_epoch(img_input,model,epoch,args):
 
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
-                loss = CMUnet_loss.get_mask_loss(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
+                loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
                 loss_val += loss['final']
         
             

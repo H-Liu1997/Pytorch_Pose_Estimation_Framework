@@ -1,8 +1,8 @@
-""" the flow of the dataloader:
-    data > cocokeypoints(finish read augment getGT proprecess) > imgori target mask ...
-    then using the dataloader by pytorch
-    the dataloader will call getitem of the cocokeypoints instance.
-"""
+# ------------------------------------------------------------------------------
+# The PifPaf_mask 53K dataloader of total framework
+# base on https://github.com/michalfaber/keras_Realtime_Multi-Person_Pose_Estimation
+# Modify by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
 
 import copy
 import logging
@@ -19,14 +19,14 @@ from pycocotools.coco import maskUtils
 from .encoder import heatmap2,paf2,utils,transforms
 
 def loader_cli(parser):
-    ''' some parameters of dataloader
-        1. data path
-        2. training img size
-        3. training img number
-        4. some augment setting
-        ...
+    ''' 
+    some parameters of dataloader
+    1. data path
+    2. training img size
+    3. training img number
+    4. some augment setting
     '''
-
+    print('choose PifPaf_mask 53K data, loading parameters...')
     group = parser.add_argument_group('dataset and loader')
     group.add_argument('--train_ann_dir',       default='./dataset/COCO/annotations/person_keypoints_train2017.json')
     group.add_argument('--train_image_dir',     default='./dataset/COCO/images/train2017')
@@ -49,43 +49,25 @@ class Meta(object):
         'image_id',
         'height',
         'width',
-        'center',
-        'bbox',
-        'area',
         'keypoints',
         'masks_segments',
-        'scale',
-        'all_joints',
-        'img',
-        'mask',
-        'aug_center',
-        'aug_joints')
+        'mask'
+        )
 
     def __init__(self, image_id,height,width):
 
         self.image_id = image_id
         self.height = height
         self.width = width
-        # self.center = center
-        # self.bbox = bbox
-        # self.area = area
-        # self.scale = scale
         self.keypoints = None
-
-        # updated after iterating over all persons
-        self.masks_segments = None
-        #self.all_joints = None
-
-        # updated during augmentation
-        #self.img = None
+        self.masks_segments = None 
         self.mask = None
-        #self.aug_center = None
-        #self.aug_joints = None
-
-
+       
 
 class COCOKeypoints(Dataset):
-    ''' finish generate mask and gt for data '''
+    ''' 
+    finish generate mask and gt for data 
+    '''
 
     def __init__(self,ann_path, img_path, augment=None,
                  other_aug=None, n_images=None, all_images=False, all_persons=False,

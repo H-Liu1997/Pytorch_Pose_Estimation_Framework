@@ -18,7 +18,7 @@ def network_cli(parser):
         1. paf and heatmap nums
         2. weight path
     '''
-
+    print("using baseline_net success")
     group = parser.add_argument_group('network')
     group.add_argument('--heatmap_num', default=19, type=int)
     group.add_argument('--paf_num', default=38, type=int)
@@ -113,22 +113,23 @@ class baselinenet(nn.Module):
         super(baselinenet,self).__init__()
 
         self.baseline_1 = PoseResNet(Bottleneck, [3, 4, 6, 3], 3,38)
-        self.baseline_2 = PoseResNetn(BasicBlock, [2, 2, 2],128,38)
-        self.baseline_3 = PoseResNetn(BasicBlock, [2, 2, 2],128,38)
-        self.baseline_4 = PoseResNetn(BasicBlock, [2, 2, 2],128,19)
+        self.baseline_2 = PoseResNetn(BasicBlock, [2, 2, 2],256,38)
+        self.baseline_3 = PoseResNetn(BasicBlock, [2, 2, 2],256+38,38)
+        self.baseline_4 = PoseResNetn(BasicBlock, [2, 2, 2],256+38,19)
 
     def forward(self,input_):
-        out1, paf1 = self.baseline_1(input_)
+        out1 = self.baseline_1(input_) #256
         
-        out2,paf2 = self.baseline_2(out1)
+        paf2 = self.baseline_2(out1)
         
+        in2 = torch.cat([out1,paf2],1) # 256+38
 
-        out3,paf3 = self.baseline_3(out2)
-    
+        paf3 = self.baseline_3(in2)
+        in3 = torch.cat([out1,paf3],1) # 256+38
+     
+        heat1 = self.baseline_4(in3)
 
-        _, heat1 = self.baseline_4(out3)
-
-        return [paf1,paf2,paf3,heat1]
+        return [paf2,paf3,heat1]
 
 
 class PoseResNet(nn.Module):
@@ -153,30 +154,6 @@ class PoseResNet(nn.Module):
             3,
             [256,256,256],
             [4,4,4],
-        )
-
-        self.final_layer = nn.Conv2d(
-            in_channels=256,
-            out_channels=out_dim,
-            kernel_size=1,
-            stride=1,
-            padding=0 
-        )
-
-        self.middle_heatorpaf = nn.Conv2d(
-            in_channels=out_dim,
-            out_channels=64,
-            kernel_size=3,
-            stride=1,
-            padding=1 
-        )
-
-        self.middle_smooth = nn.Conv2d(
-            in_channels=256,
-            out_channels=64,
-            kernel_size=3,
-            stride=1,
-            padding=1 
         )
 
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -249,15 +226,7 @@ class PoseResNet(nn.Module):
 
         x = self.deconv_layers(x)
 
-        paforheat = self.final_layer(x)
-        #print(paforheat.size())
-        x1 = F.relu(self.middle_heatorpaf(paforheat))
-        #print(x1.size())
-        x2 = F.relu(self.middle_smooth(x))
-        #print(x2.size())
-        final = torch.cat([x1,x2],1)
-
-        return final,paforheat
+        return x
 
     def init_weights(self, pretrained=''):
         if os.path.isfile(pretrained):
@@ -312,11 +281,11 @@ class PoseResNet(nn.Module):
 class PoseResNetn(nn.Module):
 
     def __init__(self, block, layers,in_dim,out_dim):
-        self.inplanes = 128
+        self.inplanes = in_dim
         self.deconv_with_bias = False
         
         super(PoseResNetn, self).__init__()
-        self.layer2 = self._make_layer(block, 128, layers[0], stride=2)
+        self.layer2 = self._make_layer(block, in_dim, layers[0], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[1], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[2], stride=2)
 
@@ -333,22 +302,6 @@ class PoseResNetn(nn.Module):
             kernel_size=1,
             stride=1,
             padding=0 
-        )
-
-        self.middle_heatorpaf = nn.Conv2d(
-            in_channels=out_dim,
-            out_channels=64,
-            kernel_size=3,
-            stride=1,
-            padding=1 
-        )
-
-        self.middle_smooth = nn.Conv2d(
-            in_channels=256,
-            out_channels=64,
-            kernel_size=3,
-            stride=1,
-            padding=1 
         )
 
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -417,11 +370,7 @@ class PoseResNetn(nn.Module):
 
         paforheat = self.final_layer(x)
         
-        x1 = F.relu(self.middle_heatorpaf(paforheat))
-        x2 = F.relu(self.middle_smooth(x))
-        final = torch.cat([x1,x2],1)
-
-        return final,paforheat
+        return paforheat
 
     def init_weights(self, pretrained=''):
         if os.path.isfile(pretrained):

@@ -11,7 +11,7 @@ def network_cli(parser):
         1. paf and heatmap nums
         2. weight path
     '''
-
+    print("using fpn_net success")
     group = parser.add_argument_group('network')
     group.add_argument('--heatmap_num', default=19, type=int)
     group.add_argument('--paf_num', default=38, type=int)

@@ -7,7 +7,8 @@ import torch.nn as nn
 
 
 
-def loss_cli(parser):
+def loss_cli(parser,name):
+    print('choose ',name,'loss success')
     group = parser.add_argument_group('loss')
     group.add_argument('--auto_weight', default=False, type=bool)
 

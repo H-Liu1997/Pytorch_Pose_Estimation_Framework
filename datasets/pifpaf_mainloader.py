@@ -1,8 +1,8 @@
-""" the flow of the dataloader:
-    data > cocokeypoints(finish read augment getGT proprecess) > imgori target mask ...
-    then using the dataloader by pytorch
-    the dataloader will call getitem of the cocokeypoints instance.
-"""
+# ------------------------------------------------------------------------------
+# The openpifpaf 50~60k dataloader of total framework
+# base on https://github.com/vita-epfl/openpifpaf
+# Modify by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
 
 import copy
 import logging
@@ -22,9 +22,8 @@ def train_cli(parser):
         2. training img size
         3. training img number
         4. some augment setting
-        ...
     '''
-
+    print('choose openpifpaf 50~60k data, loading parameters...')
     group = parser.add_argument_group('dataset and loader')
     group.add_argument('--train_ann_dir', default='/root/liu/dataset/COCO/annotations/person_keypoints_train2017.json')
     group.add_argument('--train_image_dir', default='/root/liu/dataset/COCO/images/train2017')

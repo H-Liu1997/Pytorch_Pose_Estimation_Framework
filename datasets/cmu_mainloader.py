@@ -1,3 +1,9 @@
+# ------------------------------------------------------------------------------
+# The CMU 120K/4K dataloader of total framework
+# base on https://github.com/tensorboy/pytorch_Realtime_Multi-Person_Pose_Estimation
+# Modify by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
+
 import copy
 import logging
 import os
@@ -26,9 +32,9 @@ def loader_cli(parser):
     group.add_argument('--json_path',       default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/json/COCO.json')
     group.add_argument('--mask_dir',        default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/mask2014')
     group.add_argument('--data_dir',        default='/home/liuhaiyang/Document/gnn/pytorch_Realtime_Multi-Person_Pose_Estimation-master/training/dataset/COCO/images/')
-    group.add_argument('--feat_stride',     default=4,      type=int)
+    group.add_argument('--feat_stride',     default=8,      type=int)
     group.add_argument('--loader_workers',  default=16,     type=int,help='number of workers for data loading')
-    group.add_argument('--img_size',        default=384,    type=int)
+    group.add_argument('--img_size',        default=368,    type=int)
 
 
 class Cocokeypoints(Dataset):

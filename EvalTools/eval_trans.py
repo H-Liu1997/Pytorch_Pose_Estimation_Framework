@@ -145,3 +145,10 @@ def vgg_preprocess(image):
 
     preprocessed_img = preprocessed_img.transpose((2, 0, 1)).astype(np.float32)
     return preprocessed_img
+
+def rtpose_preprocess(image):
+    image = image.astype(np.float32)
+    image = image / 256. - 0.5
+    image = image.transpose((2, 0, 1)).astype(np.float32)
+
+    return image
