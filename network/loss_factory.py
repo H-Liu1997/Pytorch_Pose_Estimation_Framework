@@ -17,10 +17,10 @@ def loss_cli(parser,loss_name):
         'sample_baseline':  resnet_loss.loss_cli,
     }
     try:
-        loss_setting = loss_LUT_cli.get(loss_name,other)
+        loss_setting = loss_LUT_cli.get(loss_name)
         loss_setting(parser,loss_name)
     except:
-        print("loss tpye error, pls open loss factory choose right loss")
+        print("loss cli error, pls open loss factory choose right loss")
 
 def get_loss_function(args):
 
@@ -33,7 +33,7 @@ def get_loss_function(args):
         'sample_baseline':  resnet_loss.get_loss,
     }
     try:
-        loss_function = loss_LUT.get(loss_name,other)
+        loss_function = loss_LUT.get(loss_name)
         return loss_function
     except:
         print("loss tpye error, pls open loss factory choose right loss")

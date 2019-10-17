@@ -17,10 +17,10 @@ def net_cli(parser,net_name):
         'sample_baseline1': baseline_old.network_cli,
     }
     try:
-        net_setting = net_LUT_cli.get(net_name,other)
-        net_setting(parser,net_name)
+        net_setting = net_LUT_cli.get(net_name)
+        net_setting(parser)
     except:
-        print("network tpye error, pls open network factory choose right network")
+        print("network cli error, pls open network factory choose right network")
 
 def get_network(args):
 
@@ -35,10 +35,10 @@ def get_network(args):
     }
     try:
         if net_name == 'fpn':
-            net_function = net_LUT_factory.get(net_name,other)
+            net_function = net_LUT_factory.get(net_name)
             net_instance = net_function()
         else:
-            net_instance = net_LUT_factory.get(net_name,other)
+            net_instance = net_LUT_factory.get(net_name)
         return net_instance
     except:
         print("network tpye error, pls open network factory choose right network")

@@ -30,18 +30,13 @@ def cli():
     4. evaluate threshold in val_cli 
     5. basic hyper-para such as learnling rate is in this file
     """
-    print("if you change the network, make sure:","\n",
-          "1.changing the network_cli","\n",
-          "2.changing the net loader","\n",
-          "3.changing loss in train and val")
-
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     parser.add_argument('--name',           default='op_test',         type=str)
-    parser.add_argument('--net',            default='CMU_old',                      type=str)
+    parser.add_argument('--net_name',       default='CMU_old',                      type=str)
     parser.add_argument('--loss',           default='CMU_2b_mask',                  type=str)
     parser.add_argument('--loader',         default='CMU_117K',                     type=str)
 
@@ -202,7 +197,7 @@ def save_config(args):
             f.write(str1)
             str1 = 'loader: ' +  str(args.loader) + '\n'
             f.write(str1)
-            str1 = 'net: ' +  str(args.net) + '\n'
+            str1 = 'net: ' +  str(args.net_name) + '\n'
             f.write(str1)
             str1 = 'loss: ' +  str(args.loss) + '\n'
             f.write(str1)

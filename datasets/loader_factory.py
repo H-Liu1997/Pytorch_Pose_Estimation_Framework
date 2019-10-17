@@ -20,10 +20,10 @@ def loader_cli(parser,loader_name):
         'PifPaf_mask'   : pifpaf_mask_mainloader.loader_cli
     }
     try:
-        loader_function = loader_lookuptable.get(loader_name,other)
+        loader_function = loader_lookuptable.get(loader_name)
         loader_function(parser)
     except:
-        print('dataloader name error, please choose CMU_120K,OpenPifPaf,PifPaf_mask,or CMU_117K')
+        print('dataloader cli error, please choose CMU_120K,OpenPifPaf,PifPaf_mask,or CMU_117K')
 
 
     # if loader_name == 'CMU_120k':
@@ -80,7 +80,7 @@ def loader_factory(args):
         'PifPaf_mask'   : pifpaf_mask_mainloader.train_factory
     }
     try:
-        loader_ = loader_LUT_factory.get(loader_name,other)
+        loader_ = loader_LUT_factory.get(loader_name)
         return loader_
     except:
         print('dataloader name error, please choose CMU_120K,OpenPifPaf,PifPaf_mask or CMU_117K')

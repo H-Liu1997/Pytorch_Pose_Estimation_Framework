@@ -23,7 +23,7 @@ def loader_cli(parser):
         3. training img number
         4. some augment setting
     '''
-    print('choose CMU offical 117K/2K data, loading parameters...') 
+    print('using CMU offical 117K/2K data success') 
     group = parser.add_argument_group('dataset and loader')
     group.add_argument('--h5_train_path',   default='/home/liuhaiyang/keras-openpose-reproduce/dataset/train_dataset_2014.h5')
     group.add_argument('--h5_val_path',     default='/home/liuhaiyang/keras-openpose-reproduce/dataset/val_dataset_2014.h5')
