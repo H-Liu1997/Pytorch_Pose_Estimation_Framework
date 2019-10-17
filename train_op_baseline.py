@@ -51,7 +51,7 @@ def cli():
     
     # trian setting
     #parser.add_argument('--pre_train',      default=1,          type=int)
-    parser.add_argument('--freeze_base',    default=1,          type=int,       help='number of epochs to train with frozen base')
+    parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
     parser.add_argument('--per_batch',      default=10,          type=int,       help='batch size per gpu')
     parser.add_argument('--gpu',            default=[0],      type=list,      help="gpu number")
@@ -87,6 +87,13 @@ def cli():
 
 
 def main():
+    '''deterministic'''
+    SEED = 0
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+    torch.backends.cudnn.deterministic = True
+    np.random.seed(SEED)
+
     '''load config parameters'''
     args = cli()
     save_config(args)
@@ -283,9 +290,16 @@ def optimizer_settings(freeze_or_not,model,args):
     2. default is SGD with momentum
     """
     if freeze_or_not:
-        for i in range(20):
-            for param in model.module.model0[i].parameters():
+        try:
+            for param in model.module.block_0.parameters():
                 param.requires_grad = False
+            for param in model.module.block_0.conv4_3.parameters():
+                param.requires_grad = True
+            for param in model.module.block_0.conv4_4.parameters():
+                param.requires_grad = True
+        except:
+            print("error! freeze need change base on network")
+
         trainable_vars = [param for param in model.parameters() if param.requires_grad]
         if args.opt_type == 'sgd':
             optimizer = torch.optim.SGD(trainable_vars,
