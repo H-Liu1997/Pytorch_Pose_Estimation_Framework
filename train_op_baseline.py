@@ -35,12 +35,12 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_new_checked',         type=str)
+    parser.add_argument('--name',           default='op_new_fixed',         type=str)
     parser.add_argument('--net_name',       default='CMU_new',                      type=str)
     parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
     parser.add_argument('--loader',         default='CMU_117K',                     type=str)
 
-    parser.add_argument('--multi_lr',       default=False,                          type=bool)
+    parser.add_argument('--multi_lr',       default=True,                          type=bool)
     parser.add_argument('--bias_decay',     default='use 0 for bias',               type=str)
     parser.add_argument('--pre_',           default='rtpose',                       type=str)
 
@@ -78,7 +78,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_checked/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_adam_test/train_final.pth")
     parser.add_argument('--print_fre',      default=5,          type=int)
     parser.add_argument('--val_type',       default=0,          type=int)
     
@@ -326,21 +326,38 @@ def optimizer_settings(freeze_or_not,model,args):
                 if not param.requires_grad:
                     print("some param freezed") 
                     continue
-                if len(param.shape) == 1 or name.endswith(".bias"):
-                    if name[7:14] == "block_0" or name[7:14] == "block_1":
-                        #print(name[7:14])
-                        no_decay_2.append(param)
-                        
+                if args.net_name =='CMU_new':
+                    if len(param.shape) == 1 or name.endswith(".bias"):
+                        if name[7:14] == "state_0" :
+                            #print(name[7:14])
+                            no_decay_2.append(param)
+                            
+                        else:
+                            no_decay_8.append(param)
+                            #print(name[7:14])
                     else:
-                        #print(name[7:14])
-                        no_decay_8.append(param)
+                        if name[7:14] == "state_0":
+                            decay_1.append(param)
+                            
+                        else:
+                            #print(name[7:14])
+                            decay_4.append(param)
                 else:
-                    if name[7:14] == "block_0" or name[7:14] == "block_1":
-                        decay_1.append(param)
-                        
+                    if len(param.shape) == 1 or name.endswith(".bias"):
+                        if name[7:14] == "block_0" or name[7:14] == "block_1":
+                            #print(name[7:14])
+                            no_decay_2.append(param)
+                            
+                        else:
+                            #print(name[7:14])
+                            no_decay_8.append(param)
                     else:
-                        #print(name[7:14])
-                        decay_4.append(param)
+                        if name[7:14] == "block_0" or name[7:14] == "block_1":
+                            decay_1.append(param)
+                            
+                        else:
+                            #print(name[7:14])
+                            decay_4.append(param)
             
             if args.opt_type == 'sgd':
                 optimizer = torch.optim.SGD([{'params': decay_1},
