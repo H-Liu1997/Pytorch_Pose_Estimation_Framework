@@ -51,7 +51,7 @@ def cli():
     
     # trian setting
     #parser.add_argument('--pre_train',      default=1,          type=int)
-    parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
+    parser.add_argument('--freeze_base',    default=1,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
     parser.add_argument('--per_batch',      default=10,          type=int,       help='batch size per gpu')
     parser.add_argument('--gpu',            default=[0],      type=list,      help="gpu number")
@@ -126,7 +126,7 @@ def main():
         
         for epoch in range(start_epoch,args.freeze_base):
             loss_train = pretrain_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function)
-            writer.add_scalar('train_pre_loss', {'train loss': loss_train}, epoch)
+            writer.add_scalar('train_pre_loss', loss_train, epoch)
             
     '''start normal training'''
     print("start normal training")
