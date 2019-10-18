@@ -24,7 +24,7 @@ def loss_cli(parser,loss_name):
 
 def get_loss_function(args):
 
-    loss_name = args.loss_name
+    loss_name = args.loss
     loss_LUT = {
         'CMU_2branch':      CMUnet_loss.get_old_loss,
         'CMU_2b_mask':      CMUnet_loss.get_mask_loss,

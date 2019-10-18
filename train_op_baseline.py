@@ -60,7 +60,7 @@ def cli():
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
     parser.add_argument('--pretrain_lr',    default=1e-6,       type=float)
     parser.add_argument('--pre_w_decay',    default=5e-4,       type=float)
-    parser.add_argument('--pre_iters',      default=1000,       type=int)
+    parser.add_argument('--pre_iters',      default=10,       type=int)
 
     parser.add_argument('--lr',             default=2e-5,       type=float)
     parser.add_argument('--w_decay',        default=5e-4,       type=float)
