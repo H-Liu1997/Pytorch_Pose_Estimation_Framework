@@ -143,9 +143,9 @@ def get_new_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,a
     # print(saved_for_loss[1].size())
 
     for i in range(args.paf_stage):
-        loss['stage_{}'.format(i)] = criterion(saved_for_loss[2*i] * paf_mask,target_paf * paf_mask,batch_size)
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * paf_mask,target_paf * paf_mask,batch_size)
         loss['final'] += loss['stage_{}'.format(i)]
     for i in range(args.paf_stage,6):
-        loss['stage_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask,batch_size)
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * heat_mask,target_heat  * heat_mask,batch_size)
         loss['final'] += loss['stage_{}'.format(i)] 
     return loss

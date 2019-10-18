@@ -35,7 +35,7 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_new_test',         type=str)
+    parser.add_argument('--name',           default='op_new_checked',         type=str)
     parser.add_argument('--net_name',       default='CMU_new',                      type=str)
     parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
     parser.add_argument('--loader',         default='CMU_117K',                     type=str)
@@ -78,7 +78,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_test/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_checked/train_final.pth")
     parser.add_argument('--print_fre',      default=5,          type=int)
     parser.add_argument('--val_type',       default=0,          type=int)
     
@@ -431,8 +431,8 @@ def pretrain_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
-            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            #print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
@@ -494,8 +494,8 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
-            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            #print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
@@ -582,8 +582,8 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
         
             
             if each_batch % args.print_fre == 0:
-                print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
-                #print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+                #print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
+                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
             begin = time.time()
         loss_val /= len(img_input)        
         #     elif args.val_type == 1:

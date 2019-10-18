@@ -282,10 +282,10 @@ class VGG_block(nn.Module):
         output_1 = self.conv4_2(output_1)
         output_1 = self.relu4_2(output_1)
         output_1 = self.conv4_3_cmu(output_1)
-        output_1 = self.bn1(output_1)
+       
         output_1 = self.relu4_3(output_1)
         output_1 = self.conv4_4_cmu(output_1)
-        output_1 = self.bn2(output_1)
+       
         output_1 = self.relu4_4(output_1)
         #print("after_vgg",input_1.size())
         return output_1
