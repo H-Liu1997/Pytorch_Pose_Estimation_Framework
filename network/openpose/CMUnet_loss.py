@@ -123,3 +123,29 @@ def get_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,
         loss['final'] += loss['stage_1_{}'.format(i)]
         loss['final'] += loss['stage_2_{}'.format(i)] 
     return loss
+
+def get_new_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,wei_con):
+    ''' input： the output of CMU net
+                the target img
+                the mask for unanno-file
+                config control the weight of loss
+    '''
+    loss = {}
+    loss['final'] = 0
+    batch_size = args.batch_size
+    criterion = My_loss().cuda()
+    # for debug
+    # print(target_heat.size())
+    # print(heat_mask.size())
+    # print(target_paf.size())
+    # print(paf_mask.size())
+    # print(saved_for_loss[0].size())
+    # print(saved_for_loss[1].size())
+
+    for i in range(args.paf_stage):
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[2*i] * paf_mask,target_paf * paf_mask,batch_size)
+        loss['final'] += loss['stage_{}'.format(i)]
+    for i in range(args.paf_stage,6):
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask,batch_size)
+        loss['final'] += loss['stage_{}'.format(i)] 
+    return loss

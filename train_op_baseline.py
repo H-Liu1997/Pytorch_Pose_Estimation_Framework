@@ -35,23 +35,23 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_test',         type=str)
-    parser.add_argument('--net_name',       default='CMU_old',                      type=str)
-    parser.add_argument('--loss',           default='CMU_2b_mask',                  type=str)
+    parser.add_argument('--name',           default='op_new_test',         type=str)
+    parser.add_argument('--net_name',       default='CMU_new',                      type=str)
+    parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
     parser.add_argument('--loader',         default='CMU_117K',                     type=str)
 
-    parser.add_argument('--multi_lr',       default='4 kinds use',                  type=str)
+    parser.add_argument('--multi_lr',       default=False,                          type=bool)
     parser.add_argument('--bias_decay',     default='use 0 for bias',               type=str)
     parser.add_argument('--pre_',           default='rtpose',                       type=str)
 
-    network_factory.net_cli(parser,'CMU_old')
-    loss_factory.loss_cli(parser,'CMU_2b_mask')
+    network_factory.net_cli(parser,'CMU_new')
+    loss_factory.loss_cli(parser,'CMU_new_mask')
     loader_factory.loader_cli(parser,"CMU_117K")
     evaluate.val_cli(parser)
     
     # trian setting
     #parser.add_argument('--pre_train',      default=1,          type=int)
-    parser.add_argument('--freeze_base',    default=1,          type=int,       help='number of epochs to train with frozen base')
+    parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
     parser.add_argument('--per_batch',      default=10,          type=int,       help='batch size per gpu')
     parser.add_argument('--gpu',            default=[0],      type=list,      help="gpu number")
@@ -66,7 +66,7 @@ def cli():
     parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
     parser.add_argument('--beta2',          default=0.999,      type=float)
-    parser.add_argument('--nesterov',       default=False,      type=bool,      help='for sgd')
+    parser.add_argument('--nesterov',       default=True,      type=bool,      help='for sgd')
 
     parser.add_argument('--auto_lr',        default=True,       type=bool,      help='using auto lr control or not')
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
@@ -78,7 +78,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_test/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_test/train_final.pth")
     parser.add_argument('--print_fre',      default=5,          type=int)
     parser.add_argument('--val_type',       default=0,          type=int)
     
@@ -319,44 +319,55 @@ def optimizer_settings(freeze_or_not,model,args):
     else:
         for param in model.module.parameters():
             param.requires_grad = True
-        decay_1, decay_4, no_decay_2, no_decay_8 = [],[],[],[]
-        for name, param in model.named_parameters():
-            if not param.requires_grad:
-                print("some param freezed") 
-                continue
-            if len(param.shape) == 1 or name.endswith(".bias"):
-                if name[7:14] == "block_0" or name[7:14] == "block_1":
-                    #print(name[7:14])
-                    no_decay_2.append(param)
-                    
+
+        if args.multi_lr:
+            decay_1, decay_4, no_decay_2, no_decay_8 = [],[],[],[]
+            for name, param in model.named_parameters():
+                if not param.requires_grad:
+                    print("some param freezed") 
+                    continue
+                if len(param.shape) == 1 or name.endswith(".bias"):
+                    if name[7:14] == "block_0" or name[7:14] == "block_1":
+                        #print(name[7:14])
+                        no_decay_2.append(param)
+                        
+                    else:
+                        #print(name[7:14])
+                        no_decay_8.append(param)
                 else:
-                    #print(name[7:14])
-                    no_decay_8.append(param)
-            else:
-                if name[7:14] == "block_0" or name[7:14] == "block_1":
-                    decay_1.append(param)
-                    
-                else:
-                    #print(name[7:14])
-                    decay_4.append(param)
-        
-        if args.opt_type == 'sgd':
-            optimizer = torch.optim.SGD([{'params': decay_1},
-                                    {'params': decay_4,'lr': args.lr*4},
-                                    {'params': no_decay_2,'lr': args.lr*2, 'weight_decay':0. },
-                                    {'params': no_decay_8,'lr': args.lr*8,'weight_decay':0.}],
-                                    lr = args.lr,
-                                    momentum = args.beta1,
-                                    weight_decay = args.w_decay,
-                                    nesterov = args.nesterov)
-        elif args.opt_type == 'adam':
-            optimizer = torch.optim.Adam(trainable_vars, 
-                                        lr=args.lr, 
-                                        betas=(args.beta1, 0.999),
-                                        eps=1e-08, 
-                                        weight_decay=args.w_decay,
-                                        amsgrad=False)
-        else: print('opt type error, please choose sgd or adam')
+                    if name[7:14] == "block_0" or name[7:14] == "block_1":
+                        decay_1.append(param)
+                        
+                    else:
+                        #print(name[7:14])
+                        decay_4.append(param)
+            
+            if args.opt_type == 'sgd':
+                optimizer = torch.optim.SGD([{'params': decay_1},
+                                        {'params': decay_4,'lr': args.lr*4},
+                                        {'params': no_decay_2,'lr': args.lr*2, 'weight_decay':0. },
+                                        {'params': no_decay_8,'lr': args.lr*8,'weight_decay':0.}],
+                                        lr = args.lr,
+                                        momentum = args.beta1,
+                                        weight_decay = args.w_decay,
+                                        nesterov = args.nesterov)
+            else: print('opt type error, please choose sgd, multi_lr not suppont adam')
+        else: 
+            trainable_vars = [param for param in model.parameters() if param.requires_grad]
+            if args.opt_type == 'sgd':
+                optimizer = torch.optim.SGD(trainable_vars,
+                                        lr = args.lr,
+                                        momentum = args.beta1,
+                                        weight_decay = args.w_decay,
+                                        nesterov = args.nesterov)
+            elif args.opt_type == 'adam':
+                optimizer = torch.optim.Adam(trainable_vars, 
+                                            lr=args.lr, 
+                                            betas=(args.beta1, 0.999),
+                                            eps=1e-08, 
+                                            weight_decay=args.w_decay,
+                                            amsgrad=False)
+            else: print('opt type error, please choose sgd or adam')
     
     if args.lr_tpye == 'v_au':
         lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, 

@@ -13,6 +13,7 @@ def loss_cli(parser,loss_name):
         'CMU_2branch':      CMUnet_loss.loss_cli,
         'CMU_2b_mask':      CMUnet_loss.loss_cli,
         'CMU_1branch':      CMUnet_loss.loss_cli,
+        'CMU_new_mask':     CMUnet_loss.loss_cli,
         'fpn':              resnet_loss.loss_cli,
         'sample_baseline':  resnet_loss.loss_cli,
     }
@@ -29,6 +30,7 @@ def get_loss_function(args):
         'CMU_2branch':      CMUnet_loss.get_old_loss,
         'CMU_2b_mask':      CMUnet_loss.get_mask_loss,
         'CMU_1branch':      CMUnet_loss.get_loss,
+        'CMU_new_mask':     CMUnet_loss.get_new_mask_loss,
         'fpn':              resnet_loss.get_loss,
         'sample_baseline':  resnet_loss.get_loss,
     }

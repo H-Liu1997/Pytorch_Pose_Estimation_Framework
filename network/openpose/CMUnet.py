@@ -31,7 +31,7 @@ class CMUnetwork(nn.Module):
         self.state_3 = state_n_block(128+args.paf_num,args.paf_num)
         self.state_4 = state_n_block(128+args.paf_num,args.paf_num)
         self.state_5 = state_1_block(128+args.paf_num,args.heatmap_num)
-        self.state_6 = state_n_block(128+args.heatmap_num,args.heatmap_num)
+        self.state_6 = state_n_block(128+args.heatmap_num+args.paf_num,args.heatmap_num)
 
     def forward(self,input_0):
 
@@ -39,23 +39,23 @@ class CMUnetwork(nn.Module):
 
         output_0 = self.state_0(input_0)
         output_1 = self.state_1(output_0)
-        input_2  = torch.cat([output_1,output_0],1)
+        input_2  = torch.cat([output_0,output_1],1)
         saved_for_loss.append(output_1)
 
         output_2 = self.state_2(input_2)
-        input_3  = torch.cat([output_2,output_0],1)
+        input_3  = torch.cat([output_0,output_2],1)
         saved_for_loss.append(output_2)
 
         output_3 = self.state_3(input_3)
-        input_4  = torch.cat([output_3,output_0],1)
+        input_4  = torch.cat([output_0,output_3],1)
         saved_for_loss.append(output_3)
 
         output_4 = self.state_4(input_4)
-        input_5  = torch.cat([output_4,output_0],1)
+        input_5  = torch.cat([output_0,output_4],1)
         saved_for_loss.append(output_4)
 
         output_5 = self.state_5(input_5)
-        input_6  = torch.cat([output_5,output_0],1)
+        input_6  = torch.cat([output_0,output_5,output_4],1)
         saved_for_loss.append(output_5)
 
         output_6 = self.state_6(input_6)
@@ -74,20 +74,13 @@ class dense_block(nn.Module):
         super(dense_block, self).__init__()
         # default inplace = False for ReLU
         
-        self.conv1 = nn.Sequential( #nn.Conv2d(in_dim, 128, 1, 1, 0),
-                                    nn.Conv2d(in_dim, 128, 3, 1, 1),
-                                    nn.BatchNorm2d(128),
-                                    nn.ReLU(inplace = True))
-        self.conv2 = nn.Sequential(nn.Conv2d(128, 128, 3, 1, 1),
-                                    nn.BatchNorm2d(128),
-                                    nn.ReLU(inplace = True))
-        # self.conv3 = nn.Sequential(nn.Conv2d(128, (out_dim-256), 3, 1, 1),
-        #                             nn.ReLU(inplace = True))
-        self.conv3 = nn.Sequential(nn.Conv2d(128, 128, 3, 1, 1),
-                                   nn.BatchNorm2d(128),
-                                   nn.ReLU(inplace = True))
+        self.conv1 = nn.Sequential( nn.Conv2d(in_dim, 128, 3, 1, 1),
+                                    nn.PReLU(num_parameters=128))
+        self.conv2 = nn.Sequential(nn.Conv2d(128, 128, 3, 1, 1),       
+                                    nn.PReLU(num_parameters=128))
+        self.conv3 = nn.Sequential(nn.Conv2d(128, 128, 3, 1, 1),  
+                                  nn.PReLU(num_parameters=128))
                                    
-        #self.conv4 = nn.Sequential(nn.Conv2d(384, out_dim, 1, 1, 0),nn.ReLU(inplace = True))
         self.initialize_weight()
         
 
@@ -97,10 +90,7 @@ class dense_block(nn.Module):
         output_2 = self.conv2(output_1)
         output_3 = self.conv3(output_2)
         output = torch.cat([output_1,output_2,output_3],1)
-        #output_4 = self.conv4(output)
-        # if debug:
-        #     output = output_3
-        # output = torch.cat([output_1,output_2,output_3],1)
+        
         return output
     
     def initialize_weight(self):
@@ -121,17 +111,12 @@ class dense_block_0(nn.Module):
         super(dense_block_0, self).__init__()
         # default inplace = False for ReLU
         
-        self.conv1 = nn.Sequential( #nn.Conv2d(in_dim, 128, 1, 1, 0),
-                                    nn.Conv2d(in_dim, 96, 3, 1, 1),
-                                    nn.BatchNorm2d(96),
-                                    nn.ReLU(inplace = True))
+        self.conv1 = nn.Sequential( nn.Conv2d(in_dim, 96, 3, 1, 1),
+                                    nn.PReLU(num_parameters = 96))
         self.conv2 = nn.Sequential(nn.Conv2d(96, 96, 3, 1, 1),
-                                   nn.BatchNorm2d(96), 
-                                    nn.ReLU(inplace = True))
-        # self.conv3 = nn.Sequential(nn.Conv2d(128, (out_dim-256), 3, 1, 1),
-        #                             nn.ReLU(inplace = True))
-        self.conv3 = nn.Sequential(nn.Conv2d(96, 96, 3, 1, 1), nn.BatchNorm2d(96),nn.ReLU(inplace = True))
-        #self.conv4 = nn.Sequential(nn.Conv2d(384, out_dim, 1, 1, 0),nn.ReLU(inplace = True))
+                                   nn.PReLU(num_parameters = 96))
+        self.conv3 = nn.Sequential(nn.Conv2d(96, 96, 3, 1, 1),
+                                   nn.PReLU(num_parameters = 96))
         self.initialize_weight()
         
 
@@ -141,10 +126,7 @@ class dense_block_0(nn.Module):
         output_2 = self.conv2(output_1)
         output_3 = self.conv3(output_2)
         output = torch.cat([output_1,output_2,output_3],1)
-        #output_4 = self.conv4(output)
-        # if debug:
-        #     output = output_3
-        # output = torch.cat([output_1,output_2,output_3],1)
+
         return output
     
     def initialize_weight(self):
@@ -171,8 +153,7 @@ class state_n_block(nn.Module):
         self.block4 = dense_block(384,128)
         self.block5 = dense_block(384,128)
         self.conv1  = nn.Sequential(nn.Conv2d(384, 512, 1, 1, 0),
-                                     nn.BatchNorm2d(512),
-                                     nn.ReLU(inplace = True))
+                                    nn.PReLU(num_parameters = 512))
         self.conv2  = nn.Conv2d(512,out_dim,1,1,0)
         self.initialize_weight()
 
@@ -209,8 +190,7 @@ class state_1_block(nn.Module):
         self.block4 = dense_block_0(288,96)
         self.block5 = dense_block_0(288,96)
         self.conv1  = nn.Sequential(nn.Conv2d(288, 256, 1, 1, 0),
-                                        nn.BatchNorm2d(256),
-                                        nn.ReLU(inplace = True))
+                                        nn.PReLU(num_parameters = 256))
         self.conv2  = nn.Conv2d(256,out_dim,1,1,0)
         self.initialize_weight()
 
@@ -269,12 +249,10 @@ class VGG_block(nn.Module):
         self.conv4_2 = nn.Conv2d(512, 512, 3, 1, 1)
         self.relu4_2 = nn.ReLU(inplace = True)
         self.conv4_3_cmu = nn.Conv2d(512, 256, 3, 1, 1)
-        self.bn1 = nn.BatchNorm2d(256)
-        self.relu4_3 = nn.ReLU(inplace = True)
+        #TODO: check the init of prelu in openpose
+        self.relu4_3 = nn.PReLU(num_parameters=256)
         self.conv4_4_cmu = nn.Conv2d(256, 128, 3, 1, 1)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.relu4_4 = nn.ReLU(inplace = True)
-
+        self.relu4_4 = nn.PReLU(num_parameters=128)
         self.initilization()
                                 
     def forward(self,input_1):
