@@ -35,18 +35,18 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_new_fixed',         type=str)
-    parser.add_argument('--net_name',       default='CMU_new',                      type=str)
-    parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
-    parser.add_argument('--loader',         default='CMU_117K',                     type=str)
+    parser.add_argument('--name',           default='op_old_fixed',         type=str)
+    parser.add_argument('--net_name',       default='CMU_old',                      type=str)
+    parser.add_argument('--loss',           default='CMU_2b_mask',                  type=str)
+    parser.add_argument('--loader',         default='CMU_120K',                     type=str)
 
     parser.add_argument('--multi_lr',       default=True,                          type=bool)
     parser.add_argument('--bias_decay',     default='use 0 for bias',               type=str)
     parser.add_argument('--pre_',           default='rtpose',                       type=str)
 
-    network_factory.net_cli(parser,'CMU_new')
-    loss_factory.loss_cli(parser,'CMU_new_mask')
-    loader_factory.loader_cli(parser,"CMU_117K")
+    network_factory.net_cli(parser,'CMU_old')
+    loss_factory.loss_cli(parser,'CMU_2b_mask')
+    loader_factory.loader_cli(parser,"CMU_120K")
     evaluate.val_cli(parser)
     
     # trian setting
@@ -55,6 +55,7 @@ def cli():
     parser.add_argument('--epochs',         default=300,        type=int)
     parser.add_argument('--per_batch',      default=10,          type=int,       help='batch size per gpu')
     parser.add_argument('--gpu',            default=[0],      type=list,      help="gpu number")
+    parser.add_argument('--short_test',     default=False,      type=bool,      )
     
     # optimizer
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
@@ -66,7 +67,7 @@ def cli():
     parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
     parser.add_argument('--beta2',          default=0.999,      type=float)
-    parser.add_argument('--nesterov',       default=True,      type=bool,      help='for sgd')
+    parser.add_argument('--nesterov',       default=False,      type=bool,      help='for sgd')
 
     parser.add_argument('--auto_lr',        default=True,       type=bool,      help='using auto lr control or not')
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
@@ -448,8 +449,8 @@ def pretrain_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            #print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
-            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
@@ -511,14 +512,15 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            #print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
-            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
         '''for short test'''
-        # if each_batch == 5:
-        #     break
+        if args.short_test and each_batch == 5:
+            break
+        
     #weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
     train_time = time.time() - train_time
@@ -583,8 +585,8 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
     
     with torch.no_grad():
         for  each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask) in enumerate(img_input):
-            # if each_batch == 5:
-            #     break
+            if args.short_test and each_batch == 5:
+                break
             data_time = time.time() - begin
             img = img.cuda()
             target_heatmap = target_heatmap.cuda()
@@ -599,8 +601,8 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
         
             
             if each_batch % args.print_fre == 0:
-                #print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
-                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+                print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
+                #print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
             begin = time.time()
         loss_val /= len(img_input)        
         #     elif args.val_type == 1:
