@@ -35,17 +35,17 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_old_fixed',         type=str)
-    parser.add_argument('--net_name',       default='CMU_old',                      type=str)
-    parser.add_argument('--loss',           default='CMU_2b_mask',                  type=str)
+    parser.add_argument('--name',           default='op_new_fixed1024',         type=str)
+    parser.add_argument('--net_name',       default='CMU_new',                      type=str)
+    parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
     parser.add_argument('--loader',         default='CMU_117K',                     type=str)
 
     parser.add_argument('--multi_lr',       default=True,                          type=bool)
     parser.add_argument('--bias_decay',     default='use 0 for bias',               type=str)
     parser.add_argument('--pre_',           default='rtpose',                       type=str)
 
-    network_factory.net_cli(parser,'CMU_old')
-    loss_factory.loss_cli(parser,'CMU_2b_mask')
+    network_factory.net_cli(parser,'CMU_new')
+    loss_factory.loss_cli(parser,'CMU_new_mask')
     loader_factory.loader_cli(parser,"CMU_117K")
     evaluate.val_cli(parser)
     
@@ -58,12 +58,12 @@ def cli():
     parser.add_argument('--short_test',     default=False,      type=bool,      )
     
     # optimizer
-    parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
+    parser.add_argument('--opt_type',       default='adam',      type=str,       help='sgd or adam')
     parser.add_argument('--pretrain_lr',    default=1e-6,       type=float)
     parser.add_argument('--pre_w_decay',    default=5e-4,       type=float)
     parser.add_argument('--pre_iters',      default=10,       type=int)
 
-    parser.add_argument('--lr',             default=2e-5,       type=float)
+    parser.add_argument('--lr',             default=5e-5,       type=float)
     parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
     parser.add_argument('--beta2',          default=0.999,      type=float)
@@ -71,15 +71,15 @@ def cli():
 
     parser.add_argument('--auto_lr',        default=True,       type=bool,      help='using auto lr control or not')
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
-    parser.add_argument('--factor',         default=0.333,      type=float,     help='divide factor of lr')
+    parser.add_argument('--factor',         default=0.5,      type=float,     help='divide factor of lr')
     parser.add_argument('--patience',       default=3,          type=int)
-    parser.add_argument('--step',           default=[17,34,51,68],       type=list)
+    parser.add_argument('--step',           default=[17,26,31,36,41,46],       type=list)
 
     # others
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_old_fixed/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_fixed1024/train_final.pth")
     parser.add_argument('--print_fre',      default=5,          type=int)
     parser.add_argument('--val_type',       default=0,          type=int)
     
@@ -369,7 +369,17 @@ def optimizer_settings(freeze_or_not,model,args):
                                         momentum = args.beta1,
                                         weight_decay = args.w_decay,
                                         nesterov = args.nesterov)
-            else: print('opt type error, please choose sgd, multi_lr not suppont adam')
+            elif args.opt_type == 'adam':
+                optimizer = torch.optim.Adam([{'params': decay_1},
+                                        {'params': decay_4,'lr': args.lr*4},
+                                        {'params': no_decay_2,'lr': args.lr*2, 'weight_decay':0. },
+                                        {'params': no_decay_8,'lr': args.lr*8,'weight_decay':0.}],
+                                            lr=args.lr, 
+                                            betas=(args.beta1, 0.999),
+                                            eps=1e-08, 
+                                            weight_decay=args.w_decay,
+                                            amsgrad=False)
+            else: print('opt type error, please choose sgd or adam')
         else: 
             trainable_vars = [param for param in model.parameters() if param.requires_grad]
             if args.opt_type == 'sgd':
@@ -449,7 +459,10 @@ def pretrain_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            if args.loss == 'CMU_new_mask':
+                print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            else:    
+                print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
             #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
@@ -512,8 +525,10 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
-            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            if args.loss == 'CMU_new_mask':
+                print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            else:    
+                print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
@@ -601,8 +616,10 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
         
             
             if each_batch % args.print_fre == 0:
-                print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
-                #print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+                if args.loss == 'CMU_new_mask':
+                    print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+                else:    
+                    print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
             begin = time.time()
         loss_val /= len(img_input)        
         #     elif args.val_type == 1:
