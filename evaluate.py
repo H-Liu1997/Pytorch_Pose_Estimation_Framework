@@ -56,7 +56,7 @@ def get_mini_batch(multi_size,input_img):
         input_crop, _, real_shape_tem = eval_trans.crop_with_factor(input_img, multi_size[i], 
                                                           factor = pooling_factor, is_ceil = True)
         '''change the input size from h * w * 3 to 3 * h * w and normalization for vgg '''  
-        img_final = eval_trans.vgg_preprocess(input_crop) 
+        img_final = eval_trans.rtpose_preprocess(input_crop) 
                                                   
         # if preprocessing == 'vgg':
         #     img_final = vgg_preprocess(input_crop)
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     import numpy as np
     from pycocotools.coco import COCO
     from collections import OrderedDict
-    from .network.openpose import CMUnet,CMU_old 
+    from .network import network_factory 
     
     #config parameters
     print("remember to check your forward return value of your new network")
@@ -196,10 +196,10 @@ if __name__ == "__main__":
     parser.add_argument('--scale',default=[1],type=list)
     parser.add_argument('--heatmap_num',default=19,type=int)
     parser.add_argument('--paf_num',default=38,type=int)
-    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/openpose/val_76.pth",
+    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_old_fixed/train_final.pth",
                         type=str)
-    parser.add_argument('--eval_dir',default="/home/ikenaga/Public/coco_dataset/images/val2017",type=str)
-    parser.add_argument('--ann_dir',default="/home/ikenaga/Public/coco_dataset/annotations/person_keypoints_val2017.json",type=str)
+    parser.add_argument('--eval_dir',default="./dataset/COCO/images/val2017",type=str)
+    parser.add_argument('--ann_dir',default="./dataset/COCO/annotations/person_keypoints_val2017.json",type=str)
     parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
                         type=str)
     parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/openpose/val_76_old.json",
@@ -212,12 +212,15 @@ if __name__ == "__main__":
     parser.add_argument('--filp', default=False, type=bool)                  
     parser.add_argument('--cal_score', default=True, type=bool)
     parser.add_argument('--preprocess', default=True, type=bool)
+    parser.add_argument('--net_name',       default='CMU_old',                      type=str)
+    network_factory.net_cli(parser,'CMU_old')
     args = parser.parse_args()
 
     outputs = []
     #load model
-    model = CMU_old.CMUnetwork(args)
-    state_dict = torch.load(args.weight_for_eval)
+    model = network_factory.get_network(args)
+    state_dict_ = torch.load(args.weight_for_eval)
+    state_dict = state_dict_['model_state']
     try:
         model.load_state_dict(state_dict)
     except:
@@ -279,8 +282,8 @@ if __name__ == "__main__":
         
         _, to_plot, candidate, subset = post.decode_pose(
             oriImg, param, heatmaps, pafs)
-        #vis_path = os.path.join(args.result_img_dir, file_name)
-        #cv2.imwrite(vis_path, to_plot)
+        vis_path = os.path.join(args.result_img_dir, file_name)
+        cv2.imwrite(vis_path, to_plot)
         #print(subset)
         append_result(eval_ids[ids], subset, candidate, outputs)
 

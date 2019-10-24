@@ -30,3 +30,5 @@ network/openpose/__pycache__/CMUnet_loss.cpython-36.pyc
 network/openpose/__pycache__/__init__.cpython-36.pyc
 ForSave/weight/op_test/train_final.pth
 ForSave/weight/op_test/val_final.pth
+ForSave/weight/op_old_fixed/train_final.pth
+ForSave/weight/op_old_fixed/val_final.pth
