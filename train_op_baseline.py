@@ -55,6 +55,7 @@ def cli():
     parser.add_argument('--epochs',         default=300,        type=int)
     parser.add_argument('--per_batch',      default=10,          type=int,       help='batch size per gpu')
     parser.add_argument('--gpu',            default=[0],      type=list,      help="gpu number")
+    parser.add_argument('--short_test',     default=False,      type=bool,      )
     
     # optimizer
     parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
@@ -517,8 +518,9 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
         begin = time.time()
 
         '''for short test'''
-        # if each_batch == 5:
-        #     break
+        if args.short_test and each_batch == 5:
+            break
+        
     #weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
     train_time = time.time() - train_time
@@ -583,8 +585,8 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
     
     with torch.no_grad():
         for  each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask) in enumerate(img_input):
-            # if each_batch == 5:
-            #     break
+            if args.short_test and each_batch == 5:
+                break
             data_time = time.time() - begin
             img = img.cuda()
             target_heatmap = target_heatmap.cuda()
