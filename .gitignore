@@ -32,3 +32,5 @@ ForSave/weight/op_test/train_final.pth
 ForSave/weight/op_test/val_final.pth
 ForSave/weight/op_old_fixed/train_final.pth
 ForSave/weight/op_old_fixed/val_final.pth
+ForSave/weight/op_new_fixed1024/train_final.pth
+ForSave/weight/op_new_fixed1024/val_final.pth

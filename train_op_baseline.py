@@ -35,12 +35,12 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_new_fixed1024',         type=str)
+    parser.add_argument('--name',           default='op_new_fixed_no_multi',         type=str)
     parser.add_argument('--net_name',       default='CMU_new',                      type=str)
     parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
     parser.add_argument('--loader',         default='CMU_117K',                     type=str)
 
-    parser.add_argument('--multi_lr',       default=True,                          type=bool)
+    parser.add_argument('--multi_lr',       default=False,                          type=bool)
     parser.add_argument('--bias_decay',     default='use 0 for bias',               type=str)
     parser.add_argument('--pre_',           default='rtpose',                       type=str)
 
@@ -79,7 +79,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_fixed1024/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_fixed_no_multi/train_final.pth")
     parser.add_argument('--print_fre',      default=5,          type=int)
     parser.add_argument('--val_type',       default=0,          type=int)
     
@@ -168,11 +168,11 @@ def save_config(args):
         
     except:
         print('already exist the log file, please remove them if needed')
-        try:
-            os.mkdir(args.weight_path)
-            print("create weight save file")
-        except:
-            print("already exist weight save file")
+    try:
+        os.mkdir(args.weight_path)
+        print("create weight save file")
+    except:
+        print("already exist weight save file")   
 
     with open(os.path.join(args.log_path,"config.txt"),'w') as f:
             str1 = 'name: ' +  str(args.name) + '\n'
