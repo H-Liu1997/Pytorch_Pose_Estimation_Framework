@@ -72,7 +72,6 @@ def cli():
     parser.add_argument('--beta2',          default=0.999,              type=float)
     parser.add_argument('--nesterov',       default=True,               type=bool,      help='for sgd')
 
-    parser.add_argument('--auto_lr',        default=True,               type=bool,      help='using auto lr control or not')
     parser.add_argument('--lr_tpye',        default='ms',               type=str,       help='milestone or auto_val')
     parser.add_argument('--factor',         default=0.5,                type=float,     help='divide factor of lr')
     parser.add_argument('--patience',       default=5,                  type=int)
@@ -239,9 +238,9 @@ def load_checkpoints(model,optimizer,lr_scheduler,args):
             print('load opt state failed')
         try:
             lr_scheduler.load_state_dict(lr_state)
-            print('load lr state success','lr: ',lr_scheduler.get_lr()[0])
+            print('load lr state success','lr: ',optimizer.get_lr()[0])
         except:
-            print('load lr state failed','lr: ',lr_scheduler.get_lr()[0])   
+            print('load lr state failed','lr: ',optimizer.get_lr()[0])   
 
     except:
         start_epoch = 0
@@ -401,7 +400,9 @@ def optimizer_settings(freeze_or_not,model,args):
     elif args.lr_tpye == 'ms': 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.step, gamma=args.factor, last_epoch=-1)
     
-    else: print('lr_scheduler type error, please choose ms or v_au')
+    else: 
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.step, gamma=1, last_epoch=-1)
+        print('lr_scheduler type error, please choose ms or v_au')
     
     return optimizer,lr_scheduler
 
