@@ -44,10 +44,10 @@ class RmpeGlobalConfig:
 
 class TransformationParams:
 
-    target_dist = 0.6000000023842;
+    target_dist = 0.6;
     scale_prob = 0;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
-    scale_min = 0.333333333333;
-    scale_max = 1.5;
+    scale_min = 0.33333334;
+    scale_max = 1.1;
     max_rotate_degree = 45.
     center_perterb_max = 40.
     flip_prob = 0.5

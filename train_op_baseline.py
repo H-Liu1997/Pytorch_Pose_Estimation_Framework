@@ -35,7 +35,7 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_new_fixed',         type=str)
+    parser.add_argument('--name',           default='op_new_ori',         type=str)
     parser.add_argument('--net_name',       default='CMU_new',                      type=str)
     parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
     parser.add_argument('--loader',         default='CMU_117K',                     type=str)
@@ -53,16 +53,17 @@ def cli():
     #parser.add_argument('--pre_train',      default=1,          type=int)
     parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,        type=int)
-    parser.add_argument('--per_batch',      default=10,          type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0],      type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=3,          type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0,1,2,3],      type=list,      help="gpu number")
+    parser.add_argument('--short_test',     default=False,      type=bool,      )
     
     # optimizer
-    parser.add_argument('--opt_type',       default='sgd',      type=str,       help='sgd or adam')
+    parser.add_argument('--opt_type',       default='adam',      type=str,       help='sgd or adam')
     parser.add_argument('--pretrain_lr',    default=1e-6,       type=float)
     parser.add_argument('--pre_w_decay',    default=5e-4,       type=float)
     parser.add_argument('--pre_iters',      default=10,       type=int)
 
-    parser.add_argument('--lr',             default=2e-5,       type=float)
+    parser.add_argument('--lr',             default=1e-4,       type=float)
     parser.add_argument('--w_decay',        default=5e-4,       type=float)
     parser.add_argument('--beta1',          default=0.90,       type=float)
     parser.add_argument('--beta2',          default=0.999,      type=float)
@@ -70,16 +71,17 @@ def cli():
 
     parser.add_argument('--auto_lr',        default=True,       type=bool,      help='using auto lr control or not')
     parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
-    parser.add_argument('--factor',         default=0.333,      type=float,     help='divide factor of lr')
-    parser.add_argument('--patience',       default=3,          type=int)
-    parser.add_argument('--step',           default=[17,34,51,68],       type=list)
+    parser.add_argument('--factor',         default=0.5,      type=float,     help='divide factor of lr')
+    parser.add_argument('--patience',       default=5,          type=int)
+    parser.add_argument('--step',           default=[200000,300000,360000,420000,480000,
+                                                     540000,600000,700000,800000,900000],      type=list)
 
     # others
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_fixed/train_final.pth")
-    parser.add_argument('--print_fre',      default=5,          type=int)
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_ori/train_final.pth")
+    parser.add_argument('--print_fre',      default=20,          type=int)
     parser.add_argument('--val_type',       default=0,          type=int)
     
     args = parser.parse_args()
@@ -134,13 +136,13 @@ def main():
         optimizer,lr_scheduler = optimizer_settings(False,model,args)
         start_epoch = args.freeze_base
     for epoch in range(start_epoch,args.epochs):
-        loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function)
+        loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function,lr_scheduler)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args,loss_function)
 
-        if args.auto_lr:
-            lr_scheduler.step(loss_val)
-        else:
-            print('no using lr_scheduler')
+        # if args.auto_lr:
+        #     lr_scheduler.step(loss_val)
+        # else:
+        #     print('no using lr_scheduler')
 
         '''save to tensorboard'''
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
@@ -157,7 +159,7 @@ def save_config(args):
     save the parameters to a txt file in the logpath
     1. contains all hyper-parameters of training 
     """
-    batch_size = len(args.gpu) * args.per_batch
+    batch_size = 10#len(args.gpu) * args.per_batch
     args.log_path = os.path.join(args.log_base,args.name)
     args.weight_path = os.path.join(args.weight_base,args.name)
     args.batch_size = batch_size
@@ -167,11 +169,11 @@ def save_config(args):
         
     except:
         print('already exist the log file, please remove them if needed')
-        try:
-            os.mkdir(args.weight_path)
-            print("create weight save file")
-        except:
-            print("already exist weight save file")
+    try:
+        os.mkdir(args.weight_path)
+        print("create weight save file")
+    except:
+        print("already exist weight save file")
 
     with open(os.path.join(args.log_path,"config.txt"),'w') as f:
             str1 = 'name: ' +  str(args.name) + '\n'
@@ -327,21 +329,23 @@ def optimizer_settings(freeze_or_not,model,args):
                     print("some param freezed") 
                     continue
                 if args.net_name =='CMU_new':
-                    if len(param.shape) == 1 or name.endswith(".bias"):
-                        if name[7:14] == "state_0" :
-                            #print(name[7:14])
+                    if name.endswith(".bias"):
+                        if name[7:14] == "state_0":
+                            print(name[7:],"using no_decay_2")
                             no_decay_2.append(param)
                             
                         else:
                             no_decay_8.append(param)
-                            #print(name[7:14])
+                            print(name[7:],"using no_decay_8")
                     else:
                         if name[7:14] == "state_0":
                             decay_1.append(param)
+                            print(name[7:],"using decay_1")
                             
                         else:
                             #print(name[7:14])
                             decay_4.append(param)
+                            print(name[7:],"using decay_4")
                 else:
                     if len(param.shape) == 1 or name.endswith(".bias"):
                         if name[7:14] == "block_0" or name[7:14] == "block_1":
@@ -358,17 +362,26 @@ def optimizer_settings(freeze_or_not,model,args):
                         else:
                             #print(name[7:14])
                             decay_4.append(param)
+
+            params = [  {'params': decay_1, 'lr': args.lr, 'weight_decay':args.w_decay,},
+                        {'params': no_decay_2, 'lr': args.lr*2,'weight_decay':0,},
+                        {'params': decay_4, 'lr': args.lr*4,'weight_decay':args.w_decay,},
+                        {'params': no_decay_8, 'lr': args.lr*8,'weight_decay':0,}]
             
             if args.opt_type == 'sgd':
-                optimizer = torch.optim.SGD([{'params': decay_1},
-                                        {'params': decay_4,'lr': args.lr*4},
-                                        {'params': no_decay_2,'lr': args.lr*2, 'weight_decay':0. },
-                                        {'params': no_decay_8,'lr': args.lr*8,'weight_decay':0.}],
+                optimizer = torch.optim.SGD(params,
                                         lr = args.lr,
                                         momentum = args.beta1,
                                         weight_decay = args.w_decay,
                                         nesterov = args.nesterov)
-            else: print('opt type error, please choose sgd, multi_lr not suppont adam')
+            elif args.opt_type == 'adam':
+                optimizer = torch.optim.Adam(params,
+                                            lr=args.lr, 
+                                            betas=(args.beta1, 0.999),
+                                            eps=1e-08, 
+                                            weight_decay=args.w_decay,
+                                            amsgrad=False)
+            else: print('opt type error, please choose sgd or adam')
         else: 
             trainable_vars = [param for param in model.parameters() if param.requires_grad]
             if args.opt_type == 'sgd':
@@ -413,6 +426,7 @@ def pretrain_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function
     print("iteration:",length)
     train_time = time.time()
     begin = time.time()
+    lr = 0
     
     '''loss control'''
     loss_for_control = torch.zeros([6,args.paf_num+args.heatmap_num])
@@ -448,8 +462,11 @@ def pretrain_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            #print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
-            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            if args.loss == 'CMU_new_mask':
+                print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time,lr)
+            else:    
+                print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
+            #print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
@@ -463,7 +480,7 @@ def pretrain_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function
     return loss_train
 
 
-def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
+def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function,lr_scheduler):
     """
     Finish 
     1.train for one epoch
@@ -508,17 +525,22 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
         optimizer.zero_grad()
         loss["final"].backward()
         optimizer.step()
+        lr_scheduler.step()
+        lr = lr_scheduler.get_lr()
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            #print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
-            print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time)
+            if args.loss == 'CMU_new_mask':
+                print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time,lr)
+            else:    
+                print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
             #writer.add_scalar("train_loss_iterations", loss_train, each_batch + epoch * length)   
         begin = time.time()
 
         '''for short test'''
-        # if each_batch == 5:
-        #     break
+        if args.short_test and each_batch == 5:
+            break
+        
     #weight_con = Online_weight_control(loss_for_control)
     loss_train /= length
     train_time = time.time() - train_time
@@ -526,7 +548,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function):
     return loss_train
 
 
-def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
+def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime,lr):
     """
     some public print information for both train and val
     """    
@@ -539,6 +561,8 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime):
     str_print += "loss3: {loss:.4f}  ".format(loss = loss['stage_3'])
     str_print += "loss4: {loss:.4f}  ".format(loss = loss['stage_4'])
     str_print += "loss5: {loss:.4f}  ".format(loss = loss['stage_5'])
+    str_print += "lr: {lr:} ".format(lr = lr[0])
+
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
 
@@ -576,15 +600,15 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
     length = len(img_input)
     begin = time.time()
     val_begin = time.time()
-
+    lr = [0]
     # temporary
     weight_con = torch.ones([1,args.paf_num+args.heatmap_num])
     weight_con = weight_con.cuda()
     
     with torch.no_grad():
         for  each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask) in enumerate(img_input):
-            # if each_batch == 5:
-            #     break
+            if args.short_test and each_batch == 5:
+                break
             data_time = time.time() - begin
             img = img.cuda()
             target_heatmap = target_heatmap.cuda()
@@ -599,8 +623,10 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
         
             
             if each_batch % args.print_fre == 0:
-                #print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
-                print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time)
+                if args.loss == 'CMU_new_mask':
+                    print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time,lr)
+                else:    
+                    print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
             begin = time.time()
         loss_val /= len(img_input)        
         #     elif args.val_type == 1:

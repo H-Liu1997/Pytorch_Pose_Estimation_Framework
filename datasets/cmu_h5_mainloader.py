@@ -25,8 +25,8 @@ def loader_cli(parser):
     '''
     print('using CMU offical 117K/2K data success') 
     group = parser.add_argument_group('dataset and loader')
-    group.add_argument('--h5_train_path',   default='./data_h5/train_dataset_2014.h5')
-    group.add_argument('--h5_val_path',     default='./data_h5/val_dataset_2014.h5')
+    group.add_argument('--h5_train_path',   default='./dataset/train_dataset_2014.h5')
+    group.add_argument('--h5_val_path',     default='./dataset/val_dataset_2014.h5')
     group.add_argument('--augment',         default=True,       type=bool)
     group.add_argument('--split_point',     default=38,         type=int)
     group.add_argument('--vec_num',         default=38,         type=int)
@@ -42,22 +42,29 @@ class h5loader(Dataset):
     def __init__(self, h5file, args):
         
         self.h5file = h5file
-        self.h5 = h5py.File(self.h5file, "r")
-        self.datum = self.h5['datum']
+        #self.h5 = h5py.File(self.h5file, "r")
+        #self.datum = self.h5['datum']
         self.heatmapper = Heatmapper()
         self.augment = args.augment
         self.split_point = args.split_point
         self.vec_num = args.vec_num
         self.heat_num = args.heat_num
-        self.keys = list(self.datum.keys())
-    
+        #self.keys = list(self.datum.keys())
+        with h5py.File(self.h5file,'r') as db:
+            self.keys = list(db['datum'].keys())
+            
+        
     def __getitem__(self, index):
-
+        
         key = self.keys[index]
-        import matplotlib.pyplot as plt
-        import cv2
+        with h5py.File(self.h5file,'r') as db:    
+            entry = db['datum'][key]
+            image, mask, meta = self.read_data(entry)
+            
+        #import matplotlib.pyplot as plt
+        #import cv2
 
-        image, mask, meta = self.read_data(key)
+        #image, mask, meta = self.read_data(key)
         image, mask, _, labels = self.transform_data(image, mask, meta)
 
         #for debug 
@@ -109,11 +116,14 @@ class h5loader(Dataset):
         return image, heat_label, heat_weights, vec_label, vec_weights
 
     def __len__(self):
-        return len(list(self.datum.keys()))
+        #return len(list(self.datum.keys()))
+        with h5py.File(self.h5file, 'r') as db:
+            lens=len(list(db['datum'].keys()))
+        return lens
 
-    def read_data(self, key):
-
-        entry = self.datum[key]
+    def read_data(self, entry):
+        
+        
 
         assert 'meta' in entry.attrs, "No 'meta' attribute in .h5 file. Did you generate .h5 with new code?"
 
@@ -141,8 +151,8 @@ class h5loader(Dataset):
 
         return img, mask, meta, labels
 
-    def __del__(self):
-        self.h5.close()
+    '''def __del__(self):
+        self.h5.close()'''
 
 
 def train_factory(type_,args):
@@ -155,7 +165,7 @@ def train_factory(type_,args):
         data_ = h5loader(args.h5_train_path,args)
         print('init data success')         
         train_loader = DataLoader(data_, shuffle=True, batch_size=args.batch_size,
-                                 num_workers=16,
+                                 num_workers=32,
                                  pin_memory=True, drop_last=True)
         print('train dataset len:{}'.format(len(train_loader.dataset)))
         return train_loader
@@ -163,7 +173,7 @@ def train_factory(type_,args):
         data_ = h5loader(args.h5_val_path,args)
         print('init data success')
         val_loader = DataLoader(data_, shuffle=False, batch_size=args.batch_size,
-                                 num_workers=16, 
+                                 num_workers=32, 
                                  pin_memory=True, drop_last=False)
         print('val dataset len:{}'.format(len(val_loader.dataset)))
         return val_loader
