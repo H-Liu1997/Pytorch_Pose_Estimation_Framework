@@ -35,54 +35,54 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_new_ori',         type=str)
-    parser.add_argument('--net_name',       default='CMU_new',                      type=str)
-    parser.add_argument('--loss',           default='CMU_new_mask',                  type=str)
-    parser.add_argument('--loader',         default='CMU_117K',                     type=str)
-
-    parser.add_argument('--multi_lr',       default=True,                          type=bool)
-    parser.add_argument('--bias_decay',     default='use 0 for bias',               type=str)
-    parser.add_argument('--pre_',           default='rtpose',                       type=str)
-
+    parser.add_argument('--name',           default='op_new_ori',       type=str)
+    parser.add_argument('--net_name',       default='CMU_new',          type=str)
+    parser.add_argument('--loss',           default='CMU_new_mask',     type=str)
+    parser.add_argument('--loader',         default='CMU_117K',         type=str)
+ 
     network_factory.net_cli(parser,'CMU_new')
     loss_factory.loss_cli(parser,'CMU_new_mask')
     loader_factory.loader_cli(parser,"CMU_117K")
     evaluate.val_cli(parser)
-    
+
+    #other setting
+    parser.add_argument('--short_test',     default=False,              type=bool)
+    parser.add_argument('--multi_lr',       default=True,               type=bool)
+    parser.add_argument('--bias_decay',     default=True,               type=bool)
+    parser.add_argument('--preprocess',     default='rtpose',           type=str)
+    parser.add_argument('--pre_train',      default=0,                  type=int)
+    parser.add_argument('--freeze_base',    default=0,                  type=int,       help='number of epochs to train with frozen base')
+    parser.add_argument('--print_fre',      default=20,                 type=int)
+    parser.add_argument('--val_type',       default=0,                  type=int)
     # trian setting
-    #parser.add_argument('--pre_train',      default=1,          type=int)
-    parser.add_argument('--freeze_base',    default=0,          type=int,       help='number of epochs to train with frozen base')
-    parser.add_argument('--epochs',         default=300,        type=int)
-    parser.add_argument('--per_batch',      default=3,          type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0,1,2,3],      type=list,      help="gpu number")
-    parser.add_argument('--short_test',     default=False,      type=bool,      )
+    parser.add_argument('--freeze_base',    default=0,                  type=int,       help='number of epochs to train with frozen base')
+    parser.add_argument('--epochs',         default=300,                type=int)
+    parser.add_argument('--per_batch',      default=10,                 type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0],                type=list,      help="gpu number")
     
     # optimizer
-    parser.add_argument('--opt_type',       default='adam',      type=str,       help='sgd or adam')
-    parser.add_argument('--pretrain_lr',    default=1e-6,       type=float)
-    parser.add_argument('--pre_w_decay',    default=5e-4,       type=float)
-    parser.add_argument('--pre_iters',      default=10,       type=int)
+    parser.add_argument('--opt_type',       default='adam',             type=str,       help='sgd or adam')
+    parser.add_argument('--pretrain_lr',    default=1e-6,               type=float)
+    parser.add_argument('--pre_w_decay',    default=5e-4,               type=float)
+    parser.add_argument('--pre_iters',      default=10,                 type=int)
 
-    parser.add_argument('--lr',             default=1e-4,       type=float)
-    parser.add_argument('--w_decay',        default=5e-4,       type=float)
-    parser.add_argument('--beta1',          default=0.90,       type=float)
-    parser.add_argument('--beta2',          default=0.999,      type=float)
-    parser.add_argument('--nesterov',       default=True,      type=bool,      help='for sgd')
+    parser.add_argument('--lr',             default=1e-4,               type=float)
+    parser.add_argument('--w_decay',        default=5e-4,               type=float)
+    parser.add_argument('--beta1',          default=0.90,               type=float)
+    parser.add_argument('--beta2',          default=0.999,              type=float)
+    parser.add_argument('--nesterov',       default=True,               type=bool,      help='for sgd')
 
-    parser.add_argument('--auto_lr',        default=True,       type=bool,      help='using auto lr control or not')
-    parser.add_argument('--lr_tpye',        default='ms',       type=str,       help='milestone or auto_val')
-    parser.add_argument('--factor',         default=0.5,      type=float,     help='divide factor of lr')
-    parser.add_argument('--patience',       default=5,          type=int)
+    parser.add_argument('--auto_lr',        default=True,               type=bool,      help='using auto lr control or not')
+    parser.add_argument('--lr_tpye',        default='ms',               type=str,       help='milestone or auto_val')
+    parser.add_argument('--factor',         default=0.5,                type=float,     help='divide factor of lr')
+    parser.add_argument('--patience',       default=5,                  type=int)
     parser.add_argument('--step',           default=[200000,300000,360000,420000,480000,
                                                      540000,600000,700000,800000,900000],      type=list)
-
-    # others
+    #other path
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
     parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_ori/train_final.pth")
-    parser.add_argument('--print_fre',      default=20,          type=int)
-    parser.add_argument('--val_type',       default=0,          type=int)
     
     args = parser.parse_args()
     return args
@@ -139,11 +139,6 @@ def main():
         loss_train = train_one_epoch(train_loader,model,optimizer,writer,epoch,args,loss_function,lr_scheduler)
         loss_val, accuracy_val = val_one_epoch(val_loader,model,epoch,args,loss_function)
 
-        # if args.auto_lr:
-        #     lr_scheduler.step(loss_val)
-        # else:
-        #     print('no using lr_scheduler')
-
         '''save to tensorboard'''
         writer.add_scalars('train_val_loss', {'train loss': loss_train,
                                                 'val loss': loss_val}, epoch)
@@ -159,7 +154,7 @@ def save_config(args):
     save the parameters to a txt file in the logpath
     1. contains all hyper-parameters of training 
     """
-    batch_size = 10#len(args.gpu) * args.per_batch
+    batch_size = len(args.gpu) * args.per_batch
     args.log_path = os.path.join(args.log_base,args.name)
     args.weight_path = os.path.join(args.weight_base,args.name)
     args.batch_size = batch_size
@@ -244,9 +239,9 @@ def load_checkpoints(model,optimizer,lr_scheduler,args):
             print('load opt state failed')
         try:
             lr_scheduler.load_state_dict(lr_state)
-            print('load lr state success')
+            print('load lr state success','lr: ',lr_scheduler.get_lr()[0])
         except:
-            print('load lr state failed')   
+            print('load lr state failed','lr: ',lr_scheduler.get_lr()[0])   
 
     except:
         start_epoch = 0
@@ -526,7 +521,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function,lr
         loss["final"].backward()
         optimizer.step()
         lr_scheduler.step()
-        lr = lr_scheduler.get_lr()
+        lr = optimizer.get_lr()
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
