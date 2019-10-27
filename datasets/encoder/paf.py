@@ -20,7 +20,7 @@ def putVecMaps(centerA, centerB, accumulate_vec_map, count, grid_y, grid_x, stri
     centerA = centerA.astype(float)
     centerB = centerB.astype(float)
 
-    thre = 1  # limb width
+    thre = 2  # limb width
     # centerB = (centerB - 3.5) / stride
     # centerA = (centerA -3.5 ) / stride
     centerB = centerB  / stride

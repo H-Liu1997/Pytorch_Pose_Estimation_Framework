@@ -97,7 +97,7 @@ class dense_block(nn.Module):
         for m in self.modules():
             #print('need check init')
             if isinstance(m, nn.Conv2d):
-                init.xavier_normal_(m.weight)
+                init.normal_(m.weight, std = 0.01)
                 if m.bias is not None:
                     init.constant_(m.bias, 0.0)
 
@@ -133,7 +133,7 @@ class dense_block_0(nn.Module):
         for m in self.modules():
             #print('need check init')
             if isinstance(m, nn.Conv2d):
-                init.xavier_normal_(m.weight)
+                init.normal_(m.weight, std = 0.01)
                 if m.bias is not None:
                     init.constant_(m.bias, 0.0)
     
@@ -171,11 +171,9 @@ class state_n_block(nn.Module):
     def initialize_weight(self):
         '''init 1*1 conv block
         '''
-        init.xavier_normal_(self.conv1[0].weight)
-        init.xavier_normal_(self.conv2.weight)
-        #init.normal_(self.conv1[0].weight, std =0.01)
+        init.normal_(self.conv1[0].weight, std =0.01)
         init.constant_(self.conv1[0].bias, 0.0)
-        #init.normal_(self.conv2.weight, std =0.01)
+        init.normal_(self.conv2.weight, std =0.01)
         init.constant_(self.conv2.bias, 0.0)
 
 class state_1_block(nn.Module):
@@ -210,11 +208,9 @@ class state_1_block(nn.Module):
     def initialize_weight(self):
         '''init 1*1 conv block
         '''
-        init.xavier_normal_(self.conv1[0].weight)
-        init.xavier_normal_(self.conv2.weight)
-        #init.normal_(self.conv1[0].weight, std =0.01)
+        init.normal_(self.conv1[0].weight, std =0.01)
         init.constant_(self.conv1[0].bias, 0.0)
-        #init.normal_(self.conv2.weight, std =0.01)
+        init.normal_(self.conv2.weight, std =0.01)
         init.constant_(self.conv2.bias, 0.0)
 
 
@@ -297,7 +293,7 @@ class VGG_block(nn.Module):
     def initilization(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                init.xavier_normal_(m.weight)
+                init.normal_(m.weight, std=0.01)
                 if m.bias is not None:  
                     init.constant_(m.bias, 0.0)
 
