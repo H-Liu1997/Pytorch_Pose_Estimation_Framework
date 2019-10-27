@@ -1,0 +1,18 @@
+name: op_new_fixed_no_funny
+opt: adam
+lr: 0.0004
+w_decay: 0.0005
+beta1: 0.9
+beta2: 0.999
+nesterov: False
+auto_lr_tpye: ms
+patience: 3
+factor: 0.5
+batch size: 10
+step: 17 26
+loader: CMU_117K
+net: CMU_new
+loss: CMU_new_mask
+multi_lr: False
+bias_decay: use 0 for bias
+pre_: rtpose
