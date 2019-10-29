@@ -238,9 +238,9 @@ def load_checkpoints(model,optimizer,lr_scheduler,args):
             print('load opt state failed')
         try:
             lr_scheduler.load_state_dict(lr_state)
-            print('load lr state success','lr: ',optimizer.get_lr()[0])
+            print('load lr state success','lr: ',optimizer.param_groups[0]['lr'])
         except:
-            print('load lr state failed','lr: ',optimizer.get_lr()[0])   
+            print('load lr state failed','lr: ',optimizer.param_groups[0]['lr'])   
 
     except:
         start_epoch = 0
@@ -522,7 +522,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function,lr
         loss["final"].backward()
         optimizer.step()
         lr_scheduler.step()
-        lr = optimizer.get_lr()
+        lr = optimizer.param_groups[0]['lr']
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
@@ -557,7 +557,7 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime,lr)
     str_print += "loss3: {loss:.4f}  ".format(loss = loss['stage_3'])
     str_print += "loss4: {loss:.4f}  ".format(loss = loss['stage_4'])
     str_print += "loss5: {loss:.4f}  ".format(loss = loss['stage_5'])
-    str_print += "lr: {lr:} ".format(lr = lr[0])
+    str_print += "lr: {lr:} ".format(lr = lr)
 
     str_print += "data_time: {time:.3f}".format(time = datatime)
     print(str_print)
@@ -596,7 +596,7 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
     length = len(img_input)
     begin = time.time()
     val_begin = time.time()
-    lr = [0]
+    lr = 0
     # temporary
     weight_con = torch.ones([1,args.paf_num+args.heatmap_num])
     weight_con = weight_con.cuda()
