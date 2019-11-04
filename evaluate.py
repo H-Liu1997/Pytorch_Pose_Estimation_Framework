@@ -3,10 +3,11 @@
 # Some tools is from coco official
 # Written by Haiyang Liu (haiyangliu1997@gmail.com)
 # ------------------------------------------------------------------------------
-import pandas as pd
+
 import json
 from .EvalTools.decoder import post
 from .EvalTools import eval_trans
+import pandas as pd
 
 
 def val_cli(parser):
@@ -211,17 +212,17 @@ if __name__ == "__main__":
     print("remember to check your forward return value of your new network")
     parser = argparse.ArgumentParser(description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--scale',default=[1],type=list)
+    parser.add_argument('--scale',default=[0.5,1,1.5,2],type=list)
     parser.add_argument('--heatmap_num',default=19,type=int)
     parser.add_argument('--paf_num',default=38,type=int)
     parser.add_argument('--weight_for_eval',default="/root/liu/Pytorch_Pose_Estimation_Framework/ForSave/weight/op_old_no_bug/train_final.pth",
                         type=str)
-    parser.add_argument('--val_type',default=1160,type=int)
+    parser.add_argument('--val_type',default=1,type=int)
     parser.add_argument('--image_list_txt',default="./dataset/COCO/images/image_info_val2014_1k.txt",type=str)
     parser.add_argument('--eval_dir',default="./dataset/COCO/images/val2017",type=str)
     parser.add_argument('--eval_dir_1160',default="./dataset/COCO/images/val2014",type=str)
     parser.add_argument('--ann_dir',default="./dataset/COCO/annotations/person_keypoints_val2017.json",type=str)
-    parser.add_argument('--ann_dir_1160',default="./dataset/COCO/annotations/person_keypoints_val2017.json",type=str)
+    parser.add_argument('--ann_dir_1160',default="./dataset/COCO/annotations/person_keypoints_val2014.json",type=str)
     parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
                         type=str)
     parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/val_76_old.json",
@@ -272,7 +273,7 @@ if __name__ == "__main__":
             _, to_plot, candidate, subset = post.decode_pose(
                 oriImg, param, heatmaps, pafs)
             vis_path = os.path.join(args.result_img_dir, img_paths[ids])
-            cv2.imwrite(vis_path, to_plot)
+            #cv2.imwrite(vis_path, to_plot)
             append_result(eval_ids[ids], subset, candidate, outputs)
     else:
         ann = COCO(args.ann_dir)
@@ -282,15 +283,16 @@ if __name__ == "__main__":
          
         #Start eval
         print("Processing Images in validation set"," total:",len(eval_ids))
-    import matplotlib.pyplot as plt
-    for ids in range(len(eval_ids)):
-        if ids%10 == 0:
-            print(ids)
-        img = ann.loadImgs(eval_ids[ids])[0]
-        file_name = img['file_name']
-        file_path = os.path.join(args.eval_dir, file_name)
-        oriImg = cv2.imread(file_path)
-        pafs, heatmaps = Get_Multiple_outputs(oriImg,model,args.scale,args.filp,args.heatmap_num,args.paf_num,args)
+        import matplotlib.pyplot as plt
+        for ids in range(len(eval_ids)):
+            if ids%10 == 0:
+                print(ids)
+        
+            img = ann.loadImgs(eval_ids[ids])[0]
+            file_name = img['file_name']
+            file_path = os.path.join(args.eval_dir, file_name)
+            oriImg = cv2.imread(file_path)
+            pafs, heatmaps = Get_Multiple_outputs(oriImg,model,args.scale,args.filp,args.heatmap_num,args.paf_num,args)
 
         # # fordebug
         # plt.figure(num = 0, figsize = (15,4))
@@ -316,12 +318,12 @@ if __name__ == "__main__":
         # plt.savefig("test_heatmap_paf_all.png") #wrong 1 time two reasons
         # plt.show()
 
-        param = {'thre1': args.thre1, 'thre2': args.thre2, 'thre3': args.thre3}
+            param = {'thre1': args.thre1, 'thre2': args.thre2, 'thre3': args.thre3}
         
-        _, to_plot, candidate, subset = post.decode_pose(
-            oriImg, param, heatmaps, pafs)
-        vis_path = os.path.join(args.result_img_dir, file_name)
-        cv2.imwrite(vis_path, to_plot)
+            _, to_plot, candidate, subset = post.decode_pose(
+                oriImg, param, heatmaps, pafs)
+            vis_path = os.path.join(args.result_img_dir, file_name)
+            cv2.imwrite(vis_path, to_plot)
         append_result(eval_ids[ids], subset, candidate, outputs)
 
     with open(args.result_json, 'w') as f:
