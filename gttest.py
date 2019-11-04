@@ -3,7 +3,7 @@
 # Some tools is from coco official
 # Written by Haiyang Liu (haiyangliu1997@gmail.com)
 # ------------------------------------------------------------------------------
-import pandas as pd
+
 import json
 from .EvalTools.decoder import post
 from .EvalTools import eval_trans
@@ -79,8 +79,7 @@ def Get_Multiple_outputs(input_img,model,Scale,Filp_or_not,heatmap_num,paf_num,a
     val_batch_numpy,useful_shape,real_shape = get_mini_batch(multi_size,input_img)
 
     val_batch = torch.from_numpy(val_batch_numpy).cuda().float() #wrong 1 time
-    with torch.no_grad():
-        outputs, _ = model(val_batch)
+    outputs, _ = model(val_batch)
     #outputs, _ = model(val_batch)
     #forget some part
     outputs_paf, outputs_heatmap = outputs[-2], outputs[-1]
@@ -153,21 +152,7 @@ def append_result(image_id, person_to_joint_assoc, joint_list, outputs):
         outputs.append(one_result)
 
 
-def get_coco_val(file_path):
-    """Reads MSCOCO validation informatio
-    :param file_path: string, the path to the MSCOCO validation file
-    :returns : list of image ids, list of image file paths, list of widths,
-               list of heights
-    """
-    val_coco = pd.read_csv(file_path, sep='\s+', header=None)
-    image_ids = list(val_coco[1])
-    file_paths = list(val_coco[2])
-    heights = list(val_coco[3])
-    widths = list(val_coco[4])
-
-    return image_ids, file_paths, heights, widths
-
-def eval_coco(outputs, args, imgIds, types):
+def eval_coco(outputs, args, imgIds):
     from pycocotools.cocoeval import COCOeval
     """Evaluate images on Coco test set
     :param outputs: list of dictionaries, the models' processed outputs
@@ -179,10 +164,7 @@ def eval_coco(outputs, args, imgIds, types):
     # initialize COCO ground truth api
     #dataType = 'val2014'
     #annFile = '%s/annotations/%s_%s.json' % (dataDir, prefix, dataType)
-    if types == 1160:
-        cocoGt = COCO(args.ann_dir_1160)
-    else:
-        cocoGt = COCO(args.ann_dir)  # load annotations
+    cocoGt = COCO(args.ann_dir)  # load annotations
     cocoDt = cocoGt.loadRes(args.result_json)  # load model outputs
 
     # running evaluation
@@ -214,14 +196,10 @@ if __name__ == "__main__":
     parser.add_argument('--scale',default=[1],type=list)
     parser.add_argument('--heatmap_num',default=19,type=int)
     parser.add_argument('--paf_num',default=38,type=int)
-    parser.add_argument('--weight_for_eval',default="/root/liu/Pytorch_Pose_Estimation_Framework/ForSave/weight/op_old_no_bug/train_final.pth",
+    parser.add_argument('--weight_for_eval',default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_ori/train_final.pth",
                         type=str)
-    parser.add_argument('--val_type',default=1160,type=int)
-    parser.add_argument('--image_list_txt',default="./dataset/COCO/images/image_info_val2014_1k.txt",type=str)
-    parser.add_argument('--eval_dir',default="./dataset/COCO/images/val2017",type=str)
-    parser.add_argument('--eval_dir_1160',default="./dataset/COCO/images/val2014",type=str)
+    parser.add_argument('--eval_dir',default="./dataset/COCO/imgaes/",type=str)
     parser.add_argument('--ann_dir',default="./dataset/COCO/annotations/person_keypoints_val2017.json",type=str)
-    parser.add_argument('--ann_dir_1160',default="./dataset/COCO/annotations/person_keypoints_val2017.json",type=str)
     parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
                         type=str)
     parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/val_76_old.json",
@@ -234,8 +212,8 @@ if __name__ == "__main__":
     parser.add_argument('--filp', default=False, type=bool)                  
     parser.add_argument('--cal_score', default=True, type=bool)
     parser.add_argument('--preprocess', default=True, type=bool)
-    parser.add_argument('--net_name',       default='CMU_old',                      type=str)
-    network_factory.net_cli(parser,'CMU_old')
+    parser.add_argument('--net_name',       default='CMU_new',                      type=str)
+    network_factory.net_cli(parser,'CMU_new')
     args = parser.parse_args()
 
     outputs = []
@@ -252,36 +230,19 @@ if __name__ == "__main__":
             new_dict[name] = v
         model.load_state_dict(new_dict)
 
-    model = torch.nn.DataParallel(model,[0]).cuda()
+    model = torch.nn.DataParallel(model).cuda()
     model.float()
     model.eval()
     print("load model success")
 
     #load test data
-    if args.val_type == 1160:
-        eval_ids, img_paths, img_heights, img_widths = get_coco_val(
-            args.image_list_txt)
-        print("Total number of validation images {}".format(len(eval_ids)))
-        import matplotlib.pyplot as plt
-        for ids in range(len(eval_ids)):
-            if ids%10 == 0:
-                print(ids)
-            oriImg = cv2.imread(os.path.join(args.eval_dir_1160,img_paths[ids]))
-            pafs, heatmaps = Get_Multiple_outputs(oriImg,model,args.scale,args.filp,args.heatmap_num,args.paf_num,args)
-            param = {'thre1': args.thre1, 'thre2': args.thre2, 'thre3': args.thre3}
-            _, to_plot, candidate, subset = post.decode_pose(
-                oriImg, param, heatmaps, pafs)
-            vis_path = os.path.join(args.result_img_dir, img_paths[ids])
-            cv2.imwrite(vis_path, to_plot)
-            append_result(eval_ids[ids], subset, candidate, outputs)
-    else:
-        ann = COCO(args.ann_dir)
-        catid =ann.getCatIds(catNms=['person'])
-        eval_ids = ann.getImgIds(catIds=catid)
-        #eval_ids = ann.getImgIds()     
-         
-        #Start eval
-        print("Processing Images in validation set"," total:",len(eval_ids))
+    ann = COCO(args.ann_dir)
+    catid =ann.getCatIds(catNms=['person'])
+    eval_ids = ann.getImgIds(catIds=catid)
+    #eval_ids = ann.getImgIds()
+    
+    #Start eval
+    print("Processing Images in validation set"," total:",len(eval_ids))
     import matplotlib.pyplot as plt
     for ids in range(len(eval_ids)):
         if ids%10 == 0:
@@ -290,6 +251,7 @@ if __name__ == "__main__":
         file_name = img['file_name']
         file_path = os.path.join(args.eval_dir, file_name)
         oriImg = cv2.imread(file_path)
+
         pafs, heatmaps = Get_Multiple_outputs(oriImg,model,args.scale,args.filp,args.heatmap_num,args.paf_num,args)
 
         # # fordebug
@@ -322,12 +284,14 @@ if __name__ == "__main__":
             oriImg, param, heatmaps, pafs)
         vis_path = os.path.join(args.result_img_dir, file_name)
         cv2.imwrite(vis_path, to_plot)
+        #print(subset)
         append_result(eval_ids[ids], subset, candidate, outputs)
 
+    #print(outputs)
     with open(args.result_json, 'w') as f:
         json.dump(outputs, f)
     if args.cal_score:
-        eval_coco(outputs=outputs, args=args, imgIds=eval_ids, types=args.val_type)
+        eval_coco(outputs=outputs, args=args, imgIds=eval_ids)
     print("finish")
     
 
@@ -335,6 +299,119 @@ if __name__ == "__main__":
     
     
 
+# ------------------------------------------------------------------------------
+# The test portion of dataloader 
+# Written by Haiyang Liu (haiyangliu1997@gmail.com)
+# ------------------------------------------------------------------------------
+
+from .datasets import loader_factory
+import argparse
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+import torch
+
+
+def cli():
+    """
+    set all parameters 
+    """
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    loader_factory.loader_cli(parser,"CMU_117K")
+    parser.add_argument('--batch_size',     default= 5,     type=int,   help='batch size per gpu')
+    parser.add_argument('--loader',         default='CMU_117K',                     type=str)
+    args = parser.parse_args()
+    return args
+
+def _get_bgimg(inp, target_size=None):
+    if target_size:
+        inp = cv2.resize(inp, target_size, interpolation=cv2.INTER_AREA)
+    return inp
+
+def inverse_vgg_preprocess(image):
+    means = [0.485, 0.456, 0.406]
+    stds = [0.229, 0.224, 0.225]
+    image = image.transpose((1,2,0))
+    
+    for i in range(3):
+        image[:, :, i] = image[:, :, i] * stds[i]
+        image[:, :, i] = image[:, :, i] + means[i]
+    image = image.copy()[:,:,::-1]
+    image = image*255
+    image = image.astype(np.uint8)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+    return image
+
+def inverse_rtpose_preprocess(image):
+    image = image.transpose((1,2,0))
+    
+    # for i in range(3):
+    #     #image[:, :, i] = image[:, :, i] * stds[i]
+    #     image[:, :, i] = image[:, :, i] + 0.5
+    image = image.copy()[:,:,::-1]
+    image = (image + 0.5) *256
+    image = image.astype(np.uint8)
+    #image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+    return image
+
+def main():
+    SEED = 0
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+    torch.backends.cudnn.deterministic = True
+    np.random.seed(SEED)
+
+    args = cli()
+    train_factory = loader_factory.loader_factory(args)
+
+    val_loader = train_factory('val',args)
+
+    for batch_id, (img,heatmap_target,heatmap_mask,paf_target,paf_mask) in enumerate(train_loader):
+        for img_id in range(10):
+            
+            np_single_img = img[img_id,:,:,:].numpy()
+            np_single_img = inverse_rtpose_preprocess(np_single_img)
+            np_heatmap = heatmap_target[img_id,0:18,:,:].numpy().transpose((1, 2, 0))
+            np_paf = paf_target[img_id,0:37,:,:].numpy()
+            
+            size_x = np_heatmap.shape[1]
+
+            fig = plt.figure()
+            a = fig.add_subplot(2,2,1)
+            a.set_title('ori_image')
+            plt.imshow(_get_bgimg(np_single_img))
+
+            a = fig.add_subplot(2,2,2)
+            a.set_title('heatmap')
+            plt.imshow(_get_bgimg(np_single_img, target_size=(size_x, size_x)),alpha=0.7)
+            tmp = np.amax(np_heatmap, axis=2)
+            plt.imshow(tmp, cmap=plt.cm.Reds, alpha=0.3)
+            plt.colorbar()
+
+            tmp2_odd = np.amax(np.absolute(np_paf[::2, :, :]), axis=0)
+            tmp2_even = np.amax(np.absolute(np_paf[1::2, :, :]), axis=0)
+
+            a = fig.add_subplot(2, 2, 3)
+            a.set_title('paf-x')
+            plt.imshow(_get_bgimg(np_single_img, target_size=(size_x,size_x)), alpha=0.7)
+            plt.imshow(tmp2_odd, cmap=plt.cm.Reds, alpha=0.3)
+            plt.colorbar()
+
+            a = fig.add_subplot(2, 2, 4)
+            a.set_title('paf-y')
+            plt.imshow(_get_bgimg(np_single_img, target_size=(size_x,size_x)), alpha=0.7)
+            plt.imshow(tmp2_even, cmap=plt.cm.Reds, alpha=0.3)
+            plt.colorbar()
+
+            plt.show()
+
+if __name__ == "__main__":
+    main()
 
 
 

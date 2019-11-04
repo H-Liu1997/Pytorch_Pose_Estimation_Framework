@@ -40,7 +40,7 @@ class COCOKeypoints(Dataset):
     ''' finish generate mask and gt for data '''
 
     def __init__(self,ann_path, img_path, augment=None,
-                 other_aug=None, n_images=None, all_images=False, all_persons=False,
+                 other_aug=None, n_images=None, all_images=False, all_persons=True,
                  input_y=368, input_x=368, stride=8):
 
         self.root = img_path
@@ -142,7 +142,7 @@ class COCOKeypoints(Dataset):
                     gaussian_map = heatmaps[:, :, i]
                     heatmaps[:, :, i] = heatmap.putGaussianMaps(
                         center, gaussian_map,
-                        3.0, grid_y, grid_x, self.stride)
+                        7.0, grid_y, grid_x, self.stride)
         # pafs
         for i, (k1, k2) in enumerate(self.LIMB_IDS):
             # limb
