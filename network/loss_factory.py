@@ -30,7 +30,7 @@ def get_loss_function(args):
         'CMU_2branch':      CMUnet_loss.get_old_loss,
         'CMU_2b_mask':      CMUnet_loss.get_mask_loss,
         'CMU_1branch':      CMUnet_loss.get_loss,
-        'CMU_new_mask':     CMUnet_loss.get_new_mask_loss,
+        'CMU_new_mask':     CMUnet_loss.get_mask_loss_self,
         'fpn':              resnet_loss.get_loss,
         'sample_baseline':  resnet_loss.get_loss,
     }
