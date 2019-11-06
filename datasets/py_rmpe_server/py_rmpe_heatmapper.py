@@ -65,6 +65,87 @@ class Heatmapper:
             visible = joints[:,i,2] < 2
             self.put_gaussian_maps(heatmaps, i, joints[visible, i, 0:2])
 
+    def putVecMasks(self, centerA, centerB, accumulate_vec_map, stride):
+    
+        grid_y, grid_x = self.grid_y, self.grid_x
+        start = stride / 2.0 - 0.5 #3.5
+        y_range = [i for i in range(int(grid_y))] #46
+        x_range = [i for i in range(int(grid_x))] #46
+        xx, yy = np.meshgrid(x_range, y_range) 
+        
+        xx = xx * stride + start
+        yy = yy * stride + start
+        d2 = (xx - centerA[0]) ** 2 + (yy - centerA[1]) ** 2
+        # d21= (xx1 - center[0]) ** 2 + (yy1 - center[1]) ** 2
+        # exponent1 = d21 / 2.0 / sigma / sigma
+        exponent = d2 / 2.0 / 7 / 7
+        mask = exponent <= 4.6052
+        # mask1 = exponent1 <= 4.6052
+        cofid_map = np.exp(-exponent)
+        cofid_map = np.multiply(mask, cofid_map)
+        accumulate_vec_map = np.where(accumulate_vec_map > cofid_map,accumulate_vec_map,cofid_map)
+
+        d2 = (xx - centerB[0]) ** 2 + (yy - centerB[1]) ** 2
+        # d21= (xx1 - center[0]) ** 2 + (yy1 - center[1]) ** 2
+        # exponent1 = d21 / 2.0 / sigma / sigma
+        exponent = d2 / 2.0 / 7 / 7
+        mask = exponent <= 4.6052
+        # mask1 = exponent1 <= 4.6052
+        cofid_map = np.exp(-exponent)
+        cofid_map = np.multiply(mask, cofid_map)
+        accumulate_vec_map = np.where(accumulate_vec_map > cofid_map,accumulate_vec_map,cofid_map)
+
+        centerA = centerA.astype(float)
+        centerB = centerB.astype(float)
+
+        thre = 1  # limb width
+        centerB = (centerB - 3.5) / stride
+        centerA = (centerA - 3.5 ) / stride
+
+        limb_vec = centerB - centerA
+        norm = np.linalg.norm(limb_vec)
+        # if (norm == 0.0):
+        #     # print 'limb is too short, ignore it...'
+        #     return accumulate_vec_map, count
+
+        limb_vec_unit = limb_vec / norm
+        # print 'limb unit vector: {}'.format(limb_vec_unit)
+
+        # To make sure not beyond the border of this two points
+        min_x = max(int(round(min(centerA[0], centerB[0]) - thre)), 0)
+        max_x = min(int(round(max(centerA[0], centerB[0]) + thre)), grid_x)
+        min_y = max(int(round(min(centerA[1], centerB[1]) - thre)), 0)
+        max_y = min(int(round(max(centerA[1], centerB[1]) + thre)), grid_y)
+        
+        distancex = max_x- min_x
+        distancey = max_y -min_y
+        if distancey >= distancex:
+            distancex += 1
+            max_x += 1
+        else:
+            distancey += 1
+        range_x = list(range(int(min_x), int(max_x), 1))
+        range_y = list(range(int(min_y), int(max_y), 1))
+        range_x1 = list(range(0, int(distancex), 1))
+        range_y1 = list(range(0, int(distancey), 1))
+        xx1,yy1 = np.meshgrid(range_x1,range_y1)
+        xx, yy = np.meshgrid(range_x, range_y)
+        ba_x = xx - centerA[0]  # the vector from (x,y) to centerA
+        ba_y = yy - centerA[1]
+        limb_width = np.abs(ba_x * limb_vec_unit[1] - ba_y * limb_vec_unit[0])
+
+        sigma = 0.7
+        exponent = limb_width ** 2 / (2 * sigma * sigma)
+        mask_paf_mask = exponent <= 4.6052
+        mask_paf = np.exp(-exponent)
+        mask_paf = np.multiply(mask_paf,mask_paf_mask)
+
+        vec_map = np.copy(accumulate_vec_map) * 0.0
+        vec_map[yy, xx] = mask_paf[yy1,xx1]
+
+        accumulate_vec_map = np.where(accumulate_vec_map > vec_map,accumulate_vec_map,vec_map)
+        return accumulate_vec_map
+
 
     def put_vector_maps(self, heatmaps, layerX, layerY, joint_from, joint_to):
 
@@ -80,7 +161,7 @@ class Heatmapper:
 
             if dnorm==0:  # we get nan here sometimes, it's kills NN
                 # TODO: handle it better. probably we should add zero paf, centered paf, or skip this completely
-                print("Parts are too close to each other. Length is zero. Skipping")
+                #print("Parts are too close to each other. Length is zero. Skipping")
                 continue
 
             dx = dx / dnorm
@@ -136,6 +217,8 @@ class Heatmapper:
 
             layerX, layerY = (RmpeGlobalConfig.paf_start + i*2, RmpeGlobalConfig.paf_start + i*2 + 1)
             self.put_vector_maps(heatmaps, layerX, layerY, joints[visible, fr, 0:2], joints[visible, to, 0:2])
+            heatmaps[RmpeGlobalConfig.paf_mask_start+i] = self.putVecMasks(joints[visible, fr, 0:2], 
+                                    joints[visible, to, 0:2],heatmaps[RmpeGlobalConfig.paf_mask_start+i],8)
 
 
 

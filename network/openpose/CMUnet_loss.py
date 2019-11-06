@@ -83,6 +83,13 @@ class My_loss(nn.Module):
         
     def forward(self, x, y, batch_size):
         return torch.sum(torch.pow((x - y), 2))/batch_size/2
+
+class My_loss2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, x, y, batch_size,mask):
+        return torch.sum(torch.pow((x - y), 2) * mask)/batch_size/2
         
 def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
    
@@ -123,6 +130,49 @@ def get_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,
         loss['final'] += loss['stage_1_{}'.format(i)]
         loss['final'] += loss['stage_2_{}'.format(i)] 
     return loss
+
+def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
+   
+    loss = {}
+    loss['final'] = 0
+    batch_size = args.batch_size
+    
+    criterion = nn.MSELoss(size_average=True)
+    for i in range(6):
+        loss['stage_1_{}'.format(i)] = criterion(saved_for_loss[2*i],target_paf,batch_size)
+        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1],target_heat,batch_size)
+        loss['final'] += loss['stage_1_{}'.format(i)]
+        loss['final'] += loss['stage_2_{}'.format(i)] 
+    return loss
+
+def get_mask_loss_self(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask_self,args,wei_con):
+    ''' input： the output of CMU net
+                the target img
+                the mask for unanno-file
+                config control the weight of loss
+    '''
+    loss = {}
+    loss['final'] = 0
+    batch_size = args.batch_size
+    criterion = My_loss().cuda()
+    criterion2 = My_loss2().cuda()
+
+    factors = 1
+    # for debug
+    # print(target_heat.size())
+    # print(heat_mask.size())
+    # print(target_paf.size())
+    # print(paf_mask.size())
+    # print(saved_for_loss[0].size())
+    # print(saved_for_loss[1].size())
+    for i in range(6):
+
+        loss['stage_1_{}'.format(i)] = factors * criterion2(saved_for_loss[2*i] * paf_mask_self[:19,:,:],target_paf * paf_mask_self[:19,:,:],batch_size,paf_mask_self[19:,:,:])
+        loss['stage_2_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask,batch_size)
+        loss['final'] += loss['stage_1_{}'.format(i)]
+        loss['final'] += loss['stage_2_{}'.format(i)] 
+    return loss
+
 
 def get_new_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,wei_con):
     ''' input： the output of CMU net

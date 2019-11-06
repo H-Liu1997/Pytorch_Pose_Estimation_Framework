@@ -32,23 +32,25 @@ class RmpeGlobalConfig:
 
     paf_layers = 2*len(limbs_conn)
     heat_layers = num_parts
-    num_layers = paf_layers + heat_layers + 1
+    num_layers = paf_layers + heat_layers + 1 + 19
 
     paf_start = 0
     heat_start = paf_layers
     bkg_start = paf_layers + heat_layers
+    paf_mask_start = paf_layers + heat_layers +1
 
     data_shape = (3, height, width)     # 3, 368, 368
     mask_shape = (height//stride, width//stride)  # 46, 46
+    paf_mask_shape = (height//stride, width//stride) # 19,46,46
     parts_shape = (num_layers, height//stride, width//stride)  # 57, 46, 46
 
 class TransformationParams:
 
     target_dist = 0.6;
     scale_prob = 0;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
-    scale_min = 0.33333334;
-    scale_max = 1.1;
-    max_rotate_degree = 45.
+    scale_min = 0.5;
+    scale_max = 0.9;
+    max_rotate_degree = 40.
     center_perterb_max = 40.
     flip_prob = 0.5
     sigma = 7.

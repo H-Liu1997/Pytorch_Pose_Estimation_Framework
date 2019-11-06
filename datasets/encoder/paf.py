@@ -100,11 +100,6 @@ def putVecMasks(centerA, centerB, accumulate_vec_map, grid_y, grid_x, stride):
     cofid_map = np.multiply(mask, cofid_map)
     accumulate_vec_map = np.where(accumulate_vec_map > cofid_map,accumulate_vec_map,cofid_map)
 
-
-    
-
-
-
     centerA = centerA.astype(float)
     centerB = centerB.astype(float)
 
@@ -144,7 +139,7 @@ def putVecMasks(centerA, centerB, accumulate_vec_map, grid_y, grid_x, stride):
     ba_y = yy - centerA[1]
     limb_width = np.abs(ba_x * limb_vec_unit[1] - ba_y * limb_vec_unit[0])
 
-    sigma = 1
+    sigma = 0.7
     exponent = limb_width ** 2 / (2 * sigma * sigma)
     mask_paf_mask = exponent <= 4.6052
     mask_paf = np.exp(-exponent)
@@ -154,33 +149,6 @@ def putVecMasks(centerA, centerB, accumulate_vec_map, grid_y, grid_x, stride):
     vec_map[yy, xx] = mask_paf[yy1,xx1]
 
     accumulate_vec_map = np.where(accumulate_vec_map > vec_map,accumulate_vec_map,vec_map)
-     
-
-
-    # mask = limb_width < thre  # mask is 2D
-
-    # vec_map = np.copy(accumulate_vec_map) * 0.0
-    # vec_map[yy, xx] = mask_paf[yy1,xx1]
-    # vec_map = vec_map[np.newaxis,:,:]
-
-    #vec_map[yy, xx] = np.repeat(mask[:, :, np.newaxis], 2, axis=2)
-    # vec_map[yy, xx] *= limb_vec_unit[np.newaxis, np.newaxis, :]
-
-    # mask = np.logical_or.reduce(
-    #     (np.abs(vec_map[:, :, 0]) > 0, np.abs(vec_map[:, :, 1]) > 0))
-
-    # accumulate_vec_map = np.multiply(
-    #     accumulate_vec_map, count[:, :, np.newaxis])
-    # accumulate_vec_map += vec_map
-    # count[mask == True] += 1
-
-    # mask = count == 0
-
-    # count[mask == True] = 1
-
-    # accumulate_vec_map = np.divide(accumulate_vec_map, count[:, :, np.newaxis])
-    # count[mask == True] = 0
-
     return accumulate_vec_map#accumulate_vec_map, count
 
 
@@ -188,18 +156,19 @@ if __name__ == "__main__":
 
     centerA = np.array((186,100))
     centerB = np.array((215,145))
+    centerC = np.array((16,100))
+    centerD = np.array((25,124))
     paf_mask = np.zeros([38,46,46])
     paf_check = np.zeros([46,46,38])
-
-    
+ 
     i = 0
-    
-     
     
     count = np.zeros((46,46),dtype=float)
     paf_mask[i,:,:] = putVecMasks(centerA,centerB,paf_mask[i,:,:],46,46,8)
+    paf_mask[i,:,:] = putVecMasks(centerC,centerD,paf_mask[i,:,:],46,46,8)
 
     paf_check[:,:,i+1:i+3],count= putVecMaps(centerA,centerB,paf_check[:,:,i+1:i+3],count,46,46,8)
+    paf_check[:,:,i+1:i+3],count= putVecMaps(centerC,centerD,paf_check[:,:,i+1:i+3],count,46,46,8)
     # center = [108,108]
     # heatmap[i,:,:],heatmap[i+1,:,:] = putGaussianMaps(center,heatmap[i,:,:],heatmap[i+1,:,:],7,46,46,8)
    
@@ -207,29 +176,29 @@ if __name__ == "__main__":
 
 
     a = plt.figure()
-    ax =Axes3D(a)
-    x = np.arange(0,46,1)
-    y = np.arange(0,46,1)
-    x,y = np.meshgrid(x,y)
-    paf_mask[i,45,45] = 5
-    def fun(x,y):
-        return paf_mask[i,x,y]
-    z = fun(x,y)
-    ax.plot_surface(x,y,z,cmap="rainbow")
-    #plt.draw()
+    # ax =Axes3D(a)
+    # x = np.arange(0,46,1)
+    # y = np.arange(0,46,1)
+    # x,y = np.meshgrid(x,y)
+    # paf_mask[i,45,45] = 5
+    # def fun(x,y):
+    #     return paf_mask[i,x,y]
+    # z = fun(x,y)
+    # ax.plot_surface(x,y,z,cmap="rainbow")
+    # #plt.draw()
 
-    # b = a.add_subplot(221)
-    # plt.imshow(paf_mask[i,:,:])
-    # plt.colorbar()
-    # c = a.add_subplot(222)
-    # plt.imshow(paf_check[:,:,i+1])
-    # plt.colorbar()
-    # d = a.add_subplot(223)
-    # plt.imshow(paf_check[:,:,i+2])
-    # plt.colorbar()
-    # e = a.add_subplot(224)
-    # plt.imshow(np.multiply(paf_check[:,:,i+1],paf_mask[i,:,:]))
-    # plt.colorbar()
+    b = a.add_subplot(221)
+    plt.imshow(paf_mask[i,:,:])
+    plt.colorbar()
+    c = a.add_subplot(222)
+    plt.imshow(paf_check[:,:,i+1])
+    plt.colorbar()
+    d = a.add_subplot(223)
+    plt.imshow(paf_check[:,:,i+2])
+    plt.colorbar()
+    e = a.add_subplot(224)
+    plt.imshow(np.multiply(paf_check[:,:,i+1],paf_mask[i,:,:]))
+    plt.colorbar()
 
     #c.imshow(heatmap[i+1,:,:])
     plt.show()
