@@ -13,7 +13,7 @@ def loss_cli(parser,name):
     group = parser.add_argument_group('loss')
     group.add_argument('--auto_weight', default=False, type=bool)
 
-def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,target_offset,args):
+def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,target_offset,args,epoch):
     ''' input： the output of CMU net
                 the target img
                 the mask for unanno-file
@@ -47,10 +47,12 @@ def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,tar
         loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * paf_mask,target_paf * paf_mask,batch_size)
         loss['final'] += loss['stage_{}'.format(i)]
     for i in range(args.paf_stage,6):
-        loss['stage_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask,batch_size)
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * heat_mask,target_heat  * heat_mask,batch_size)
         loss['final'] += loss['stage_{}'.format(i)] 
     for i in range(6,7):
         loss['stage_{}'.format(i)] = criterion_offset(saved_for_loss[-1], heat_output_copy_final,target_offset,batch_size)
+        if epoch > 4:
+            loss['final'] += loss['stage_{}'.format(i)]
     return loss
 
 

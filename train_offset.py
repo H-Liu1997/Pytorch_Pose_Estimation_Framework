@@ -55,7 +55,7 @@ def cli():
     parser.add_argument('--print_fre',      default=20,                 type=int)
     parser.add_argument('--val_type',       default=0,                  type=int)
     # trian setting
-    parser.add_argument('--freeze_base',    default=0,                  type=int,       help='number of epochs to train with frozen base')
+    #parser.add_argument('--freeze_base',    default=0,                  type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,                type=int)
     parser.add_argument('--per_batch',      default=10,                 type=int,       help='batch size per gpu')
     parser.add_argument('--gpu',            default=[0],                type=list,      help="gpu number")
@@ -204,7 +204,7 @@ def save_config(args):
             f.write(str1)
             str1 = 'bias_decay: ' +  str(args.bias_decay) + '\n'
             f.write(str1)
-            str1 = 'pre_: ' +  str(args.pre_) + '\n'
+            str1 = 'pre_: ' +  str(args.preprocess) + '\n'
             f.write(str1)
 
     
@@ -265,6 +265,8 @@ def save_checkpoints(model,optimizer,lr_scheduler,epoch,val_loss,val_min,args):
     save the min val loss and every train loss
     """
     train_path = os.path.join(args.weight_path,'train_final.pth')
+    
+
     states = { 
                'model_state': model.state_dict(),
                'epoch': epoch + 1,
@@ -272,6 +274,9 @@ def save_checkpoints(model,optimizer,lr_scheduler,epoch,val_loss,val_min,args):
                'lr_state': lr_scheduler.state_dict(),
     }
     torch.save(states,train_path)
+    if epoch == 4:
+        train_path_4 = os.path.join(args.weight_path,'train_final_4.pth')
+        torch.save(states,train_path_4)
     if val_loss<val_min:
         val_path = os.path.join(args.weight_path,'val_final.pth')
         torch.save(states,val_path)
@@ -442,12 +447,12 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function,lr
         target_paf = target_paf.cuda()
         heat_mask = heat_mask.cuda()
         paf_mask = paf_mask.cuda()
-        offset = paf_self_mask.cuda()
+        offset = offset.cuda()
 
 
         _, saved_for_loss = model(img)
         #loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
-        loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,offset,args)
+        loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,offset,args,epoch)
 
         # for i in range(args.paf_stage):
         #     for j in range(args.paf_num):
@@ -554,7 +559,7 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
 
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
-                loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args)
+                loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,offset,args,epoch)
                 loss_val += loss['final']
         
             
