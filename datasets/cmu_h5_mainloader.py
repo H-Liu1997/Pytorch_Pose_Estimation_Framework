@@ -88,12 +88,14 @@ class h5loader(Dataset):
         heat_weights = np.repeat(mask[:,:,np.newaxis], self.heat_num, axis=2)
         vec_label = labels[:self.split_point, :, :]
         heat_label = labels[self.split_point:self.split_point+19, :, :]
-        vec_mask_label = labels[self.split_point+19:, :, :]
+        #vec_mask_label = labels[self.split_point+19:, :, :]
+        offset_label = labels[self.split_point+19:, :, :]
 
 
         vec_label = torch.from_numpy(vec_label)
         heat_label = torch.from_numpy(heat_label)
-        vec_mask_label = torch.from_numpy(vec_mask_label)
+        #vec_mask_label = torch.from_numpy(vec_mask_label)
+        offset_label = torch.from_numpy(offset_label)
 
         heat_weights = torch.from_numpy(heat_weights)
         vec_weights = torch.from_numpy(vec_weights)
@@ -102,7 +104,8 @@ class h5loader(Dataset):
 
         vec_label = vec_label.type(torch.float32)
         heat_label = heat_label.type(torch.float32)
-        vec_mask_label = vec_mask_label.type(torch.float32)
+        #vec_mask_label = vec_mask_label.type(torch.float32)
+        offset_label = offset_label.type(torch.float32)
 
         heat_weights = heat_weights.type(torch.float32)
         vec_weights = vec_weights.type(torch.float32)
@@ -121,7 +124,7 @@ class h5loader(Dataset):
         # plt.imshow(image)
         # plt.show()
 
-        return image, heat_label, heat_weights, vec_label, vec_weights,vec_mask_label
+        return image, heat_label, heat_weights, vec_label, vec_weights, offset_label
 
     def __len__(self):
         #return len(list(self.datum.keys()))

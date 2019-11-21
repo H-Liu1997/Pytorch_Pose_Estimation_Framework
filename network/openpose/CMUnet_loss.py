@@ -13,6 +13,47 @@ def loss_cli(parser,name):
     group = parser.add_argument_group('loss')
     group.add_argument('--auto_weight', default=False, type=bool)
 
+def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,target_offset,args):
+    ''' input： the output of CMU net
+                the target img
+                the mask for unanno-file
+                config control the weight of loss
+    '''
+    loss = {}
+    loss['final'] = 0
+    batch_size = args.batch_size
+    criterion = My_loss().cuda()
+    criterion_offset = My_loss_offset().cuda()
+    heat_output = saved_for_loss[-2]
+    heat_output_copy = torch.zeros(heat_output.shape)
+    heat_output_copy.copy_(heat_output)
+    heat_output_copy = heat_output_copy.cuda()
+    heat_output_copy_final = torch.zeros([heat_output.shape[0],heat_output.shape[1]*2,
+                                    heat_output.shape[2],heat_output.shape[3]])
+    for i in range(heat_output.shape[1]):
+        heat_output_copy_final[:,2*i,:,:] = heat_output_copy[:,i,:,:]
+        heat_output_copy_final[:,2*i+1,:,:] = heat_output_copy[:,i,:,:]
+    heat_output_copy_final = heat_output_copy_final.cuda()
+    # for debug
+    # print(target_heat.size())
+    # print(heat_mask.size())
+    # print(target_paf.size())
+    # print(paf_mask.size())
+    # print(saved_for_loss[0].size())
+    # print(saved_for_loss[1].size())
+
+    for i in range(args.paf_stage):
+
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * paf_mask,target_paf * paf_mask,batch_size)
+        loss['final'] += loss['stage_{}'.format(i)]
+    for i in range(args.paf_stage,6):
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[2*i+1] * heat_mask,target_heat  * heat_mask,batch_size)
+        loss['final'] += loss['stage_{}'.format(i)] 
+    for i in range(6,7):
+        loss['stage_{}'.format(i)] = criterion_offset(saved_for_loss[-1], heat_output_copy_final,target_offset,batch_size)
+    return loss
+
+
 
 def get_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     '''
@@ -89,6 +130,13 @@ class My_loss2(nn.Module):
         super().__init__()
         
     def forward(self, x, y, batch_size,mask):
+        return torch.sum(torch.pow((x - y), 2) * mask)/batch_size/2
+
+class My_loss_offset(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, x, mask, y, batch_size):
         return torch.sum(torch.pow((x - y), 2) * mask)/batch_size/2
         
 def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
