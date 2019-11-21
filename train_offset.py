@@ -35,13 +35,13 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('--name',           default='op_new_ori',       type=str)
+    parser.add_argument('--name',           default='op_new_offset',       type=str)
     parser.add_argument('--net_name',       default='CMU_new',          type=str)
-    parser.add_argument('--loss',           default='CMU_new_mask',     type=str)
+    parser.add_argument('--loss',           default='offset_mask',     type=str)
     parser.add_argument('--loader',         default='CMU_117K',         type=str)
  
     network_factory.net_cli(parser,'CMU_new')
-    loss_factory.loss_cli(parser,'CMU_new_mask')
+    loss_factory.loss_cli(parser,'offset_mask')
     loader_factory.loader_cli(parser,"CMU_117K")
     evaluate.val_cli(parser)
 
@@ -81,7 +81,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_ori/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_offset/train_final.pth")
     
     args = parser.parse_args()
     return args
@@ -447,7 +447,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function,lr
 
         _, saved_for_loss = model(img)
         #loss = CMUnet_loss.get_loss(saved_for_loss,target_heatmap,target_paf,args,weight_con)
-        loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask_final,args,weight_con)
+        loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,offset,args)
 
         # for i in range(args.paf_stage):
         #     for j in range(args.paf_num):
@@ -464,7 +464,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function,lr
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            if args.loss == 'CMU_new_mask':
+            if args.loss == 'CMU_new_mask' or 'offset_mask':
                 print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time,lr)
             else:    
                 print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
@@ -495,6 +495,7 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime,lr)
     str_print += "loss3: {loss:.4f}  ".format(loss = loss['stage_3'])
     str_print += "loss4: {loss:.4f}  ".format(loss = loss['stage_4'])
     str_print += "loss5: {loss:.4f}  ".format(loss = loss['stage_5'])
+    str_print += "loss6: {loss:.4f}  ".format(loss = loss['stage_6'])
     str_print += "lr: {lr:} ".format(lr = lr)
 
     str_print += "data_time: {time:.3f}".format(time = datatime)
@@ -540,7 +541,7 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
     weight_con = weight_con.cuda()
     
     with torch.no_grad():
-        for  each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask) in enumerate(img_input):
+        for each_batch, (img, target_heatmap, heat_mask, target_paf, paf_mask, offset) in enumerate(img_input):
             if args.short_test and each_batch == 5:
                 break
             data_time = time.time() - begin
@@ -549,15 +550,16 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
             target_paf = target_paf.cuda()
             heat_mask = heat_mask.cuda()
             paf_mask = paf_mask.cuda()
+            offset = offset.cuda()
 
             if args.val_type == 0:
                 _, saved_for_loss = model(img)
-                loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args,weight_con)
+                loss = loss_function(saved_for_loss,target_heatmap,heat_mask,target_paf,paf_mask,args)
                 loss_val += loss['final']
         
             
             if each_batch % args.print_fre == 0:
-                if args.loss == 'CMU_new_mask':
+                if args.loss == 'CMU_new_mask' or 'offset_mask':
                     print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time,lr)
                 else:    
                     print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)
