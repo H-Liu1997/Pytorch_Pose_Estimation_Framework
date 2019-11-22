@@ -8,6 +8,7 @@ import argparse
 from collections import OrderedDict
 import json
 import os
+import logging
 
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -35,37 +36,46 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
+    # This portion just for recording in txt file, the following name portion also need be changed
     parser.add_argument('--name',           default='op_new_offset',       type=str)
     parser.add_argument('--net_name',       default='CMU_new',          type=str)
     parser.add_argument('--loss',           default='offset_mask',     type=str)
     parser.add_argument('--loader',         default='CMU_117K',         type=str)
- 
     network_factory.net_cli(parser,'CMU_new')
     loss_factory.loss_cli(parser,'offset_mask')
     loader_factory.loader_cli(parser,"CMU_117K")
     evaluate.val_cli(parser)
 
-    #other setting
+    # TODO: Add warm up
+    #       Try vgg process
+    #       Add val in running time
+    #       Modify logging and print
+
+    # short test and pretrain
     parser.add_argument('--short_test',     default=False,              type=bool)
-    parser.add_argument('--multi_lr',       default=True,               type=bool)
-    parser.add_argument('--bias_decay',     default=True,               type=bool)
-    parser.add_argument('--preprocess',     default='rtpose',           type=str)
     parser.add_argument('--pre_train',      default=0,                  type=int)
     parser.add_argument('--freeze_base',    default=0,                  type=int,       help='number of epochs to train with frozen base')
-    parser.add_argument('--print_fre',      default=20,                 type=int)
-    parser.add_argument('--val_type',       default=0,                  type=int)
-    # trian setting
-    #parser.add_argument('--freeze_base',    default=0,                  type=int,       help='number of epochs to train with frozen base')
-    parser.add_argument('--epochs',         default=300,                type=int)
-    parser.add_argument('--per_batch',      default=5,                 type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0,1],                type=list,      help="gpu number")
-    
-    # optimizer
-    parser.add_argument('--opt_type',       default='adam',             type=str,       help='sgd or adam')
     parser.add_argument('--pretrain_lr',    default=1e-6,               type=float)
     parser.add_argument('--pre_w_decay',    default=5e-4,               type=float)
     parser.add_argument('--pre_iters',      default=10,                 type=int)
+    
+    # tricks
+    parser.add_argument('--multi_lr',       default=True,               type=bool)
+    parser.add_argument('--bias_decay',     default=True,               type=bool)
+    parser.add_argument('--preprocess',     default='rtpose',           type=str)
 
+    # other setting
+    parser.add_argument('--seed',           default=7,                  type=int)
+    parser.add_argument('--print_fre',      default=20,                 type=int)
+    parser.add_argument('--val_type',       default=0,                  type=int)
+
+    # trian setting
+    parser.add_argument('--epochs',         default=300,                type=int)
+    parser.add_argument('--per_batch',      default=10,                 type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0],                type=list,      help="gpu number")
+    
+    # optimizer
+    parser.add_argument('--opt_type',       default='adam',             type=str,       help='sgd or adam')
     parser.add_argument('--lr',             default=1e-4,               type=float)
     parser.add_argument('--w_decay',        default=5e-4,               type=float)
     parser.add_argument('--beta1',          default=0.90,               type=float)
@@ -81,23 +91,22 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_offset/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_offset/train_final_4.pth")
     
     args = parser.parse_args()
     return args
 
 
 def main():
-    '''deterministic'''
-    SEED = 0
-    torch.manual_seed(SEED)
-    torch.cuda.manual_seed(SEED)
-    torch.backends.cudnn.deterministic = True
-    np.random.seed(SEED)
-
     '''load config parameters'''
     args = cli()
     save_config(args)
+    
+    '''deterministic'''
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    np.random.seed(args.seed)
     
     '''data portion'''
     train_factory = loader_factory.loader_factory(args)
@@ -153,59 +162,71 @@ def save_config(args):
     save the parameters to a txt file in the logpath
     1. contains all hyper-parameters of training 
     """
+    # modify some parameters
     batch_size = len(args.gpu) * args.per_batch
     args.log_path = os.path.join(args.log_base,args.name)
     args.weight_path = os.path.join(args.weight_base,args.name)
     args.batch_size = batch_size
+    flag_have_file = 0
+    
+    # create config save file
     try:
         os.mkdir(args.log_path)
-        print("create log save file")
-        
+        logging.basicConfig(filename=os.path.join(args.log_base,(args.name+'.log')),
+            format='%(levelname)s:%(message)s', level=logging.INFO)
+        print("create log save file")       
     except:
+        flag_have_file = 1
+        logging.basicConfig(filename=os.path.join(args.log_base,(args.name+'.log')),
+            format='%(levelname)s:%(message)s', level=logging.INFO)
         print('already exist the log file, please remove them if needed')
     try:
         os.mkdir(args.weight_path)
         print("create weight save file")
     except:
-        print("already exist weight save file")
+        print("already exist weight save file, please remove them if needed")
 
-    with open(os.path.join(args.log_path,"config.txt"),'w') as f:
-            str1 = 'name: ' +  str(args.name) + '\n'
-            f.write(str1)
-            str1 = 'opt: ' +  str(args.opt_type) + '\n'
-            f.write(str1)
-            str1 = 'lr: ' +  str(args.lr) + '\n'
-            f.write(str1)
-            str1 = 'w_decay: ' +  str(args.w_decay) + '\n'
-            f.write(str1)
-            str1 = 'beta1: ' +  str(args.beta1) + '\n'
-            f.write(str1)
-            str1 = 'beta2: ' +  str(args.beta2) + '\n'
-            f.write(str1)
-            str1 = 'nesterov: ' +  str(args.nesterov) + '\n'
-            f.write(str1)
-            str1 = 'auto_lr_tpye: ' +  str(args.lr_tpye) + '\n'
-            f.write(str1)
-            str1 = 'patience: ' +  str(args.patience) + '\n'
-            f.write(str1)
-            str1 = 'factor: ' +  str(args.factor) + '\n'
-            f.write(str1)
-            str1 = 'batch size: ' +  str(batch_size) + '\n'
-            f.write(str1)
-            str1 = 'step: ' +  str(args.step[0]) +" "+  str(args.step[1]) + '\n'
-            f.write(str1)
-            str1 = 'loader: ' +  str(args.loader) + '\n'
-            f.write(str1)
-            str1 = 'net: ' +  str(args.net_name) + '\n'
-            f.write(str1)
-            str1 = 'loss: ' +  str(args.loss) + '\n'
-            f.write(str1)
-            str1 = 'multi_lr: ' +  str(args.multi_lr) + '\n'
-            f.write(str1)
-            str1 = 'bias_decay: ' +  str(args.bias_decay) + '\n'
-            f.write(str1)
-            str1 = 'pre_: ' +  str(args.preprocess) + '\n'
-            f.write(str1)
+    #write log information
+    if flag_have_file==1:
+        logging.info('-----------------Continue-----------------')
+        logging.info('Continue Seed: %s',str(args.seed))
+    else:
+        logging.info('------------------Start-----------------')
+        logging.info('Experimental Name: %s',   args.name)
+        logging.info('----------------Optimizer-Info----------------')
+        logging.info('Optimizer: %s',           args.opt_type)
+        logging.info('Learning Rate: %s',       str(args.lr))
+        logging.info('Weight Decay: %s',        str(args.w_decay))
+        logging.info('Beta1 or Momentum: %s',   str(args.beta1))
+
+        if args.opt_type == 'sgd':
+            logging.info('SGD nesterov: %s',        str(args.nesterov))
+        else:
+            logging.info('Beta2: %s',               str(args.beta2))
+
+        logging.info('Auto_lr_tpye: %s',        str(args.lr_tpye))
+        if args.lr_tpye == 'ms':
+            logging.info('Factor: %s',        str(args.factor))
+            logging.info('Step: %s',          str(args.step))
+        else:
+            logging.info('Patience: %s',      str(args.patience))
+        
+        logging.info('----------------Train-Info----------------')
+        logging.info('GPU: %s',                 str(args.gpu))
+        logging.info('Batch Szie Total: %s',    str(batch_size))
+        logging.info('Batch Szie: %s',          str(batch_size))
+        logging.info('No Bias Decay: %s',       str(args.bias_decay))
+        logging.info('Multi Lr: %s',            str(args.multi_lr))
+
+        logging.info('----------------Data-Info----------------')
+        logging.info('Data Type: %s',           str(args.loader))
+        logging.info('Preprocess Type: %s',     str(args.preprocess))
+        logging.info('Scale shown in the name')
+        
+        logging.info('----------------Other-Info----------------')
+        logging.info('Network Tpye: %s', args.net_name)
+        logging.info('Loss Type: %s', args.loss)
+        logging.info('Start Seed: %s', str(args.seed))
 
     
 def load_checkpoints(model,optimizer,lr_scheduler,args):
@@ -221,6 +242,7 @@ def load_checkpoints(model,optimizer,lr_scheduler,args):
         opt_state = checkpoint['opt_state']
         lr_state = checkpoint['lr_state']
         start_epoch = checkpoint['epoch']
+        logging.info('Epoch: %s', str(start_epoch))
         print("load checkpoint success")
         try:
             model.load_state_dict(model_state)

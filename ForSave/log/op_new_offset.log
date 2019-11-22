@@ -1,0 +1,32 @@
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:Epoch: 5
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:Epoch: 5
+SELF:----------------Note-----------------
+    Date 2019/11/22
+    This is the first try of the offset * heatmap
+    Epoch: [5][0/11787      ]Total_loss: 5369.5815(5369.5815)loss0: 96.8734  loss1: 94.2935  loss2: 92.6164  loss3: 92.8828  loss4: 25.6787  loss5: 26.3133  loss6: 4940.9233  lr: 0.0001 data_time: 11.445
+    Epoch: [5][20/11787     ]Total_loss: 1381.8296(1535.3248)loss0: 88.6646  loss1: 87.5973  loss2: 86.2032  loss3: 93.1443  loss4: 59.8703  loss5: 1074.2424  loss6: -107.8926  lr: 0.0001 data_time: 0.000
+    Epoch: [5][40/11787     ]Total_loss: 17483.9355(322.7274)loss0: 130.5967  loss1: 128.9634  loss2: 127.8634  loss3: 153.4884  loss4: 73.4317  loss5: 19285.2480  loss6: -2415.6560  lr: 0.0001 data_time: 0.000
+    offset loss cannot good calculate
+    DEBUG: 1. check the backward of the copy heatmap. finish
+           2. heatmap have minor value, try using abs(L1) loss
+           3. check the ground truth and mask order.
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:Epoch: 5
+SELF:----------------Note-----------------
+    Date 2019/11/22 -2
+    Set no_grad for heatmap copy useless,same loss 
+    Debug: 4. check the valueable realy no_grad or not.
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:Epoch: 5
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:Epoch: 5
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 7
+INFO:Epoch: 5

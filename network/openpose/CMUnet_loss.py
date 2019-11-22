@@ -25,11 +25,11 @@ def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,tar
     criterion = My_loss().cuda()
     criterion_offset = My_loss_offset().cuda()
     heat_output = saved_for_loss[-2]
-    heat_output_copy = torch.zeros(heat_output.shape)
+    heat_output_copy = torch.zeros(heat_output.shape,requires_grad=False)
     heat_output_copy.copy_(heat_output)
     heat_output_copy = heat_output_copy.cuda()
     heat_output_copy_final = torch.zeros([heat_output.shape[0],heat_output.shape[1]*2,
-                                    heat_output.shape[2],heat_output.shape[3]])
+                                    heat_output.shape[2],heat_output.shape[3]],requires_grad=False)
     for i in range(heat_output.shape[1]):
         heat_output_copy_final[:,2*i,:,:] = heat_output_copy[:,i,:,:]
         heat_output_copy_final[:,2*i+1,:,:] = heat_output_copy[:,i,:,:]
@@ -139,7 +139,7 @@ class My_loss_offset(nn.Module):
         super().__init__()
         
     def forward(self, x, mask, y, batch_size):
-        return torch.sum(torch.pow((x - y), 2) * mask)/batch_size/2
+        return torch.sum(torch.abs(torch.pow((x - y), 2) * mask))/batch_size/2
         
 def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
    

@@ -172,12 +172,12 @@ def save_config(args):
     # create config save file
     try:
         os.mkdir(args.log_path)
-        logging.basicConfig(filename=os.path.join(args.log_path,(args.name+'.log')),
+        logging.basicConfig(filename=os.path.join(args.log_base,(args.name+'.log')),
             format='%(levelname)s:%(message)s', level=logging.INFO)
         print("create log save file")       
     except:
         flag_have_file = 1
-        logging.basicConfig(filename=os.path.join(args.log_path,(args.name+'.log')),
+        logging.basicConfig(filename=os.path.join(args.log_base,(args.name+'.log')),
             format='%(levelname)s:%(message)s', level=logging.INFO)
         print('already exist the log file, please remove them if needed')
     try:
