@@ -57,8 +57,8 @@ def cli():
     # trian setting
     #parser.add_argument('--freeze_base',    default=0,                  type=int,       help='number of epochs to train with frozen base')
     parser.add_argument('--epochs',         default=300,                type=int)
-    parser.add_argument('--per_batch',      default=10,                 type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0],                type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=5,                 type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0,1],                type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='adam',             type=str,       help='sgd or adam')

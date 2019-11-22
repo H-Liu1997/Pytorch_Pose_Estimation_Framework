@@ -37,7 +37,7 @@ def cli():
     )
 
     # This portion just for recording in txt file, the following name portion also need be changed
-    parser.add_argument('--name',           default='op_new_0511',       type=str)
+    parser.add_argument('--name',           default='op_new_test',       type=str)
     parser.add_argument('--net_name',       default='CMU_new',          type=str)
     parser.add_argument('--loss',           default='CMU_new_mask',     type=str)
     parser.add_argument('--loader',         default='CMU_117K',         type=str)
@@ -172,13 +172,13 @@ def save_config(args):
     # create config save file
     try:
         os.mkdir(args.log_path)
-        logging.basicConfig(filename=os.path.join(args.name,'.log'),
-            format='%(levelname)s:%(message)s', path=args.log_path,level=logging.INFO)
+        logging.basicConfig(filename=os.path.join(args.log_path,(args.name+'.log')),
+            format='%(levelname)s:%(message)s', level=logging.INFO)
         print("create log save file")       
     except:
         flag_have_file = 1
-        logging.basicConfig(filename=os.path.join(args.name,'.log'),
-            format='%(levelname)s:%(message)s', path=args.log_path,level=logging.INFO)
+        logging.basicConfig(filename=os.path.join(args.log_path,(args.name+'.log')),
+            format='%(levelname)s:%(message)s', level=logging.INFO)
         print('already exist the log file, please remove them if needed')
     try:
         os.mkdir(args.weight_path)
@@ -187,7 +187,7 @@ def save_config(args):
         print("already exist weight save file, please remove them if needed")
 
     #write log information
-    if flag_have_file:
+    if flag_have_file==1:
         logging.info('-----------------Continue-----------------')
         logging.info('Continue Seed: %s',str(args.seed))
     else:
@@ -220,7 +220,7 @@ def save_config(args):
 
         logging.info('----------------Data-Info----------------')
         logging.info('Data Type: %s',           str(args.loader))
-        logging.info('Preprocess Type: %s',     str(args.pre_))
+        logging.info('Preprocess Type: %s',     str(args.preprocess))
         logging.info('Scale shown in the name')
         
         logging.info('----------------Other-Info----------------')
