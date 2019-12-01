@@ -32,7 +32,6 @@ class CMUnetwork(nn.Module):
         self.state_4 = state_n_block(128+args.paf_num,args.paf_num)
         self.state_5 = state_1_block(128+args.paf_num,args.heatmap_num)
         self.state_6 = state_n_block(128+args.heatmap_num+args.paf_num,args.heatmap_num)
-        self.state_7 = state_n_block(128+args.heatmap_num,38)
 
     def forward(self,input_0):
 
@@ -61,12 +60,8 @@ class CMUnetwork(nn.Module):
 
         output_6 = self.state_6(input_6)
         saved_for_loss.append(output_6)
-        input_7  = torch.cat([output_0,output_6],1)
 
-        output_7 = self.state_7(input_7)
-        saved_for_loss.append(output_7)
-
-        return (output_4,output_6,output_7), saved_for_loss
+        return (output_4,output_6), saved_for_loss
 
 
 class dense_block(nn.Module):

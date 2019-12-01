@@ -14,11 +14,7 @@ def loss_cli(parser,name):
     group.add_argument('--auto_weight', default=False, type=bool)
 
 def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,target_offset,args,epoch):
-    ''' input： the output of CMU net
-                the target img
-                the mask for unanno-file
-                config control the weight of loss
-    '''
+    
     loss = {}
     loss['final'] = 0
     batch_size = args.batch_size
@@ -58,12 +54,7 @@ def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,tar
 
 
 def get_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
-    '''
-    input： the output of CMU net
-            the target img
-            the mask for unanno-file
-            onfig control the weight of loss
-    '''
+    
     loss = {}
     length = len(saved_for_loss)
     loss['final'] = 0
@@ -127,6 +118,13 @@ class My_loss(nn.Module):
     def forward(self, x, y, batch_size):
         return torch.sum(torch.pow((x - y), 2))/batch_size/2
 
+class My_loss_focus(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, x, y, batch_size):
+        return torch.sum(torch.pow((x - y), 4))/batch_size
+
 class My_loss2(nn.Module):
     def __init__(self):
         super().__init__()
@@ -156,11 +154,7 @@ def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     return loss
 
 def get_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,wei_con):
-    ''' input： the output of CMU net
-                the target img
-                the mask for unanno-file
-                config control the weight of loss
-    '''
+    
     loss = {}
     loss['final'] = 0
     batch_size = args.batch_size
@@ -196,11 +190,7 @@ def get_old_loss(saved_for_loss,target_heat,target_paf,args,wei_con):
     return loss
 
 def get_mask_loss_self(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask_self,args,wei_con):
-    ''' input： the output of CMU net
-                the target img
-                the mask for unanno-file
-                config control the weight of loss
-    '''
+    
     loss = {}
     loss['final'] = 0
     batch_size = args.batch_size
@@ -225,15 +215,33 @@ def get_mask_loss_self(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask_
 
 
 def get_new_mask_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,wei_con):
-    ''' input： the output of CMU net
-                the target img
-                the mask for unanno-file
-                config control the weight of loss
-    '''
+   
     loss = {}
     loss['final'] = 0
     batch_size = args.batch_size
     criterion = My_loss().cuda()
+    # for debug
+    # print(target_heat.size())
+    # print(heat_mask.size())
+    # print(target_paf.size())
+    # print(paf_mask.size())
+    # print(saved_for_loss[0].size())
+    # print(saved_for_loss[1].size())
+
+    for i in range(args.paf_stage):
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * paf_mask,target_paf * paf_mask,batch_size)
+        loss['final'] += loss['stage_{}'.format(i)]
+    for i in range(args.paf_stage,6):
+        loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * heat_mask,target_heat  * heat_mask,batch_size)
+        loss['final'] += loss['stage_{}'.format(i)] 
+    return loss
+    
+def get_new_focus_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,args,wei_con):
+   
+    loss = {}
+    loss['final'] = 0
+    batch_size = args.batch_size
+    criterion = My_loss_focus().cuda()
     # for debug
     # print(target_heat.size())
     # print(heat_mask.size())

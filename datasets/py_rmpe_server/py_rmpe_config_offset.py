@@ -22,6 +22,9 @@ class RmpeGlobalConfig:
     parts += ["background"]
     num_parts_with_background = len(parts)
 
+    num_offset = 18*2 # 18 keypoints and 2 backgrounds
+    num_paf_masks = 19 # 19 connections  
+
     leftParts, rightParts = ltr_parts(parts_dict)
 
     # this numbers probably copied from matlab they are 1.. based not 0.. based
@@ -32,14 +35,18 @@ class RmpeGlobalConfig:
 
     paf_layers = 2*len(limbs_conn)
     heat_layers = num_parts
-    num_layers = paf_layers + heat_layers + 1
+    num_layers = paf_layers + heat_layers + 1 + num_offset + 2 
 
     paf_start = 0
     heat_start = paf_layers
     bkg_start = paf_layers + heat_layers
+    offset_start = paf_layers + heat_layers + 1
+    offset_bkg_start = paf_layers + heat_layers + 1 + num_offset
+    #paf_mask_start = paf_layers + heat_layers +1
 
     data_shape = (3, height, width)     # 3, 368, 368
     mask_shape = (height//stride, width//stride)  # 46, 46
+    paf_mask_shape = (height//stride, width//stride) # 19,46,46
     parts_shape = (num_layers, height//stride, width//stride)  # 57, 46, 46
 
 class TransformationParams:
@@ -56,7 +63,6 @@ class TransformationParams:
 
 
 class RmpeCocoConfig:
-
 
     parts = ['nose', 'Leye', 'Reye', 'Lear', 'Rear', 'Lsho', 'Rsho', 'Lelb',
      'Relb', 'Lwri', 'Rwri', 'Lhip', 'Rhip', 'Lkne', 'Rkne', 'Lank',
@@ -107,8 +113,6 @@ class RpmeMPIIConfig:
     @staticmethod
     def convert(joints):
         raise "Not implemented"
-
-
 
 # more information on keypoints mapping is here
 # https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation/issues/7

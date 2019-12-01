@@ -100,3 +100,5 @@ datasets/encoder/__pycache__/preprocessing.cpython-37.pyc
 datasets/encoder/__pycache__/paf2.cpython-37.pyc
 datasets/encoder/__pycache__/paf.cpython-37.pyc
 datasets/encoder/__pycache__/ImageAugmentation.cpython-37.pyc
+ForSave/weight/op_new_focus/train_final.pth
+ForSave/weight/op_new_focus/val_final.pth

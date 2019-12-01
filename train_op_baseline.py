@@ -37,12 +37,12 @@ def cli():
     )
 
     # This portion just for recording in txt file, the following name portion also need be changed
-    parser.add_argument('--name',           default='op_new_test',       type=str)
+    parser.add_argument('--name',           default='op_new_focus',       type=str)
     parser.add_argument('--net_name',       default='CMU_new',          type=str)
-    parser.add_argument('--loss',           default='CMU_new_mask',     type=str)
+    parser.add_argument('--loss',           default='focus_mask',     type=str)
     parser.add_argument('--loader',         default='CMU_117K',         type=str)
     network_factory.net_cli(parser,'CMU_new')
-    loss_factory.loss_cli(parser,'CMU_new_mask')
+    loss_factory.loss_cli(parser,'focus_mask')
     loader_factory.loader_cli(parser,"CMU_117K")
     evaluate.val_cli(parser)
 
@@ -71,8 +71,8 @@ def cli():
 
     # trian setting
     parser.add_argument('--epochs',         default=300,                type=int)
-    parser.add_argument('--per_batch',      default=10,                 type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0],                type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=5,                 type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0,1],                type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='adam',             type=str,       help='sgd or adam')
@@ -91,7 +91,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_0511/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_focus/train_final.pth")
     
     args = parser.parse_args()
     return args
@@ -548,7 +548,7 @@ def train_one_epoch(img_input,model,optimizer,writer,epoch,args,loss_function,lr
         loss_train += loss["final"]
     
         if each_batch % args.print_fre == 0:
-            if args.loss == 'CMU_new_mask':
+            if args.loss == 'CMU_new_mask' or args.loss == 'focus_mask':
                 print_to_terminal(epoch,each_batch,length,loss,loss_train,data_time,lr)
             else:    
                 print_to_terminal_old(epoch,each_batch,length,loss,loss_train,data_time)
@@ -641,7 +641,7 @@ def val_one_epoch(img_input,model,epoch,args,loss_function):
         
             
             if each_batch % args.print_fre == 0:
-                if args.loss == 'CMU_new_mask':
+                if args.loss == 'CMU_new_mask' or args.loss == 'focus_mask':
                     print_to_terminal(epoch,each_batch,length,loss,loss_val,data_time,lr)
                 else:    
                     print_to_terminal_old(epoch,each_batch,length,loss,loss_val,data_time)

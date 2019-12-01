@@ -215,9 +215,9 @@ if __name__ == "__main__":
     parser.add_argument('--scale',default=[0.5,1,1.5,2],type=list)
     parser.add_argument('--heatmap_num',default=19,type=int)
     parser.add_argument('--paf_num',default=38,type=int)
-    parser.add_argument('--weight_for_eval',default="/root/liu/Pytorch_Pose_Estimation_Framework/ForSave/weight/op_old_no_bug/train_final.pth",
+    parser.add_argument('--weight_for_eval',default="/root/liu/Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_offset/train_final.pth",
                         type=str)
-    parser.add_argument('--val_type',default=1,type=int)
+    parser.add_argument('--val_type',default=1160,type=int)
     parser.add_argument('--image_list_txt',default="./dataset/COCO/images/image_info_val2014_1k.txt",type=str)
     parser.add_argument('--eval_dir',default="./dataset/COCO/images/val2017",type=str)
     parser.add_argument('--eval_dir_1160',default="./dataset/COCO/images/val2014",type=str)
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     parser.add_argument('--ann_dir_1160',default="./dataset/COCO/annotations/person_keypoints_val2014.json",type=str)
     parser.add_argument('--result_img_dir',default="./Pytorch_Pose_Estimation_Framework/ForSave/imgs/openpose3",
                         type=str)
-    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/val_76_old.json",
+    parser.add_argument('--result_json', default="./Pytorch_Pose_Estimation_Framework/ForSave/json/op_new_offset_1160_multi.json",
                         type=str)
     parser.add_argument('--thre1', default=0.1, type=float)
     parser.add_argument('--thre2', default=0.05, type=float)
@@ -235,8 +235,8 @@ if __name__ == "__main__":
     parser.add_argument('--filp', default=False, type=bool)                  
     parser.add_argument('--cal_score', default=True, type=bool)
     parser.add_argument('--preprocess', default=True, type=bool)
-    parser.add_argument('--net_name',       default='CMU_old',                      type=str)
-    network_factory.net_cli(parser,'CMU_old')
+    parser.add_argument('--net_name',       default='CMU_new',                      type=str)
+    network_factory.net_cli(parser,'CMU_new')
     args = parser.parse_args()
 
     outputs = []
