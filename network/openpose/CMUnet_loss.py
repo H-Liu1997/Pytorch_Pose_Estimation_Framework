@@ -125,6 +125,14 @@ class My_loss_focus(nn.Module):
     def forward(self, x, y, batch_size):
         return torch.sum(torch.pow((x - y), 4))/batch_size
 
+class My_loss_focus2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, x, y, batch_size):
+        return torch.sum(torch.log1p(torch.abs((x - y))))/batch_size/4
+
+
 class My_loss2(nn.Module):
     def __init__(self):
         super().__init__()
@@ -241,7 +249,7 @@ def get_new_focus_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,
     loss = {}
     loss['final'] = 0
     batch_size = args.batch_size
-    criterion = My_loss_focus().cuda()
+    criterion = My_loss_focus2().cuda()
     # for debug
     # print(target_heat.size())
     # print(heat_mask.size())
