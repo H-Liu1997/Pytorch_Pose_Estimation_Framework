@@ -37,7 +37,7 @@ def cli():
     )
 
     # This portion just for recording in txt file, the following name portion also need be changed
-    parser.add_argument('--name',           default='op_new_focus',       type=str)
+    parser.add_argument('--name',           default='op_new_focus2',       type=str)
     parser.add_argument('--net_name',       default='CMU_new',          type=str)
     parser.add_argument('--loss',           default='focus_mask',     type=str)
     parser.add_argument('--loader',         default='CMU_117K',         type=str)
@@ -71,8 +71,8 @@ def cli():
 
     # trian setting
     parser.add_argument('--epochs',         default=300,                type=int)
-    parser.add_argument('--per_batch',      default=5,                 type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0,1],                type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=10,                 type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0],                type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='adam',             type=str,       help='sgd or adam')
@@ -91,7 +91,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_focus/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_focus2/train_final.pth")
     
     args = parser.parse_args()
     return args
