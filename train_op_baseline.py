@@ -65,7 +65,7 @@ def cli():
     parser.add_argument('--preprocess',     default='rtpose',           type=str)
 
     # other setting
-    parser.add_argument('--seed',           default=0,                  type=int)
+    parser.add_argument('--seed',           default=7,                  type=int)
     parser.add_argument('--print_fre',      default=20,                 type=int)
     parser.add_argument('--val_type',       default=0,                  type=int)
 

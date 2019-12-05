@@ -20,16 +20,28 @@ def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,tar
     batch_size = args.batch_size
     criterion = My_loss().cuda()
     criterion_offset = My_loss_offset().cuda()
-    heat_output = saved_for_loss[-2]
+    heat_output = saved_for_loss[-1][:,:19,:,:].detach()
+    #print(heat_output.requires_grad,1) 
     heat_output_copy = torch.zeros(heat_output.shape,requires_grad=False)
+    #print(heat_output_copy.requires_grad,2)
     heat_output_copy.copy_(heat_output)
+    #print(heat_output_copy.requires_grad,3)
     heat_output_copy = heat_output_copy.cuda()
+    #print(heat_output_copy.requires_grad,4)
     heat_output_copy_final = torch.zeros([heat_output.shape[0],heat_output.shape[1]*2,
                                     heat_output.shape[2],heat_output.shape[3]],requires_grad=False)
+    #print(heat_output_copy_final.requires_grad,5)
     for i in range(heat_output.shape[1]):
         heat_output_copy_final[:,2*i,:,:] = heat_output_copy[:,i,:,:]
         heat_output_copy_final[:,2*i+1,:,:] = heat_output_copy[:,i,:,:]
     heat_output_copy_final = heat_output_copy_final.cuda()
+    #print(heat_output_copy_final.requires_grad,6)
+    #heat_output_copy_final.requires_grad = False
+    #heat_output_copy.requires_grad = False
+    #heat_output.requires_grad = False
+    #print(heat_output_copy_final.requires_grad,7)
+    #print(heat_output_copy.requires_grad,8)
+    #print(heat_output.requires_grad,9)
     # for debug
     # print(target_heat.size())
     # print(heat_mask.size())
@@ -43,12 +55,17 @@ def get_offset_loss(saved_for_loss,target_heat,heat_mask,target_paf,paf_mask,tar
         loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * paf_mask,target_paf * paf_mask,batch_size)
         loss['final'] += loss['stage_{}'.format(i)]
     for i in range(args.paf_stage,6):
-        loss['stage_{}'.format(i)] = criterion(saved_for_loss[i] * heat_mask,target_heat  * heat_mask,batch_size)
+        loss_a = criterion(saved_for_loss[i][:,:19,:,:] * heat_mask,target_heat * heat_mask,batch_size)
+        loss_b = criterion_offset(saved_for_loss[i][:,19:,:,:], heat_output_copy_final,target_offset,batch_size)
+        if epoch > 4: 
+            loss['stage_{}'.format(i)] = loss_a + loss_b
+        else:
+            loss['stage_{}'.format(i)] = loss_a
         loss['final'] += loss['stage_{}'.format(i)] 
-    for i in range(6,7):
+    '''for i in range(6,7):
         loss['stage_{}'.format(i)] = criterion_offset(saved_for_loss[-1], heat_output_copy_final,target_offset,batch_size)
         if epoch > 4:
-            loss['final'] += loss['stage_{}'.format(i)]
+            loss['final'] += loss['stage_{}'.format(i)]'''
     return loss
 
 

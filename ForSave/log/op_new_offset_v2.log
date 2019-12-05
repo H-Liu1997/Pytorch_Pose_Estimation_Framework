@@ -1,5 +1,5 @@
 INFO:------------------Start-----------------
-INFO:Experimental Name: op_new_focus
+INFO:Experimental Name: op_new_offset_v2
 INFO:----------------Optimizer-Info----------------
 INFO:Optimizer: adam
 INFO:Learning Rate: 0.0001
@@ -10,18 +10,18 @@ INFO:Auto_lr_tpye: ms
 INFO:Factor: 0.5
 INFO:Step: [200000, 300000, 360000, 420000, 480000, 540000, 600000, 700000, 800000, 900000]
 INFO:----------------Train-Info----------------
-INFO:GPU: [0]
+INFO:GPU: [0, 1]
 INFO:Batch Szie Total: 10
 INFO:Batch Szie: 10
 INFO:No Bias Decay: True
 INFO:Multi Lr: True
 INFO:----------------Data-Info----------------
-INFO:Data Type: CMU_117K
+INFO:Data Type: CMU_117K_offset
 INFO:Preprocess Type: rtpose
 INFO:Scale shown in the name
 INFO:----------------Other-Info----------------
 INFO:Network Tpye: CMU_new
-INFO:Loss Type: focus_mask
+INFO:Loss Type: offset_mask
 INFO:Start Seed: 0
 INFO:-----------------Continue-----------------
 INFO:Continue Seed: 0
@@ -37,7 +37,21 @@ INFO:-----------------Continue-----------------
 INFO:Continue Seed: 0
 INFO:-----------------Continue-----------------
 INFO:Continue Seed: 0
-INFO:Epoch: 51
 INFO:-----------------Continue-----------------
-INFO:Continue Seed: 7
-INFO:Epoch: 51
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0
+INFO:-----------------Continue-----------------
+INFO:Continue Seed: 0

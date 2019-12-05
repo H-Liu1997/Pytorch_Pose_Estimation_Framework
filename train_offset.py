@@ -37,13 +37,13 @@ def cli():
     )
 
     # This portion just for recording in txt file, the following name portion also need be changed
-    parser.add_argument('--name',           default='op_new_offset',       type=str)
+    parser.add_argument('--name',           default='op_new_offset_v2',       type=str)
     parser.add_argument('--net_name',       default='CMU_new',          type=str)
     parser.add_argument('--loss',           default='offset_mask',     type=str)
-    parser.add_argument('--loader',         default='CMU_117K',         type=str)
+    parser.add_argument('--loader',         default='CMU_117K_offset',         type=str)
     network_factory.net_cli(parser,'CMU_new')
     loss_factory.loss_cli(parser,'offset_mask')
-    loader_factory.loader_cli(parser,"CMU_117K")
+    loader_factory.loader_cli(parser,"CMU_117K_offset")
     evaluate.val_cli(parser)
 
     # TODO: Add warm up
@@ -65,14 +65,14 @@ def cli():
     parser.add_argument('--preprocess',     default='rtpose',           type=str)
 
     # other setting
-    parser.add_argument('--seed',           default=7,                  type=int)
+    parser.add_argument('--seed',           default=0,                  type=int)
     parser.add_argument('--print_fre',      default=20,                 type=int)
     parser.add_argument('--val_type',       default=0,                  type=int)
 
     # trian setting
     parser.add_argument('--epochs',         default=300,                type=int)
-    parser.add_argument('--per_batch',      default=10,                 type=int,       help='batch size per gpu')
-    parser.add_argument('--gpu',            default=[0],                type=list,      help="gpu number")
+    parser.add_argument('--per_batch',      default=5,                 type=int,       help='batch size per gpu')
+    parser.add_argument('--gpu',            default=[0,1],                type=list,      help="gpu number")
     
     # optimizer
     parser.add_argument('--opt_type',       default='adam',             type=str,       help='sgd or adam')
@@ -91,7 +91,7 @@ def cli():
     parser.add_argument('--log_base',       default="./Pytorch_Pose_Estimation_Framework/ForSave/log/")
     parser.add_argument('--weight_pre',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/pretrain/")
     parser.add_argument('--weight_base',    default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/")
-    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_offset/train_final.pth")
+    parser.add_argument('--checkpoint',     default="./Pytorch_Pose_Estimation_Framework/ForSave/weight/op_new_offset_v2/train_final.pth")
     
     args = parser.parse_args()
     return args
@@ -522,7 +522,7 @@ def print_to_terminal(epoch,current_step,len_of_input,loss,loss_avg,datatime,lr)
     str_print += "loss3: {loss:.4f}  ".format(loss = loss['stage_3'])
     str_print += "loss4: {loss:.4f}  ".format(loss = loss['stage_4'])
     str_print += "loss5: {loss:.4f}  ".format(loss = loss['stage_5'])
-    str_print += "loss6: {loss:.4f}  ".format(loss = loss['stage_6'])
+    #str_print += "loss6: {loss:.4f}  ".format(loss = loss['stage_6'])
     str_print += "lr: {lr:} ".format(lr = lr)
 
     str_print += "data_time: {time:.3f}".format(time = datatime)

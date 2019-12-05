@@ -8,6 +8,7 @@ from . import cmu_mainloader
 from . import pifpaf_mainloader
 from . import cmu_h5_mainloader
 from . import pifpaf_mask_mainloader
+from . import cmu_h5_mainloader_offset
 
 def loader_cli(parser,loader_name):
     '''
@@ -17,7 +18,8 @@ def loader_cli(parser,loader_name):
         'CMU_120K'      : cmu_mainloader.loader_cli,
         'OpenPifPaf'    : pifpaf_mainloader.train_cli,
         'CMU_117K'      : cmu_h5_mainloader.loader_cli,
-        'PifPaf_mask'   : pifpaf_mask_mainloader.loader_cli
+        'PifPaf_mask'   : pifpaf_mask_mainloader.loader_cli,
+        'CMU_117K_offset'   : cmu_h5_mainloader_offset.loader_cli
     }
     try:
         loader_function = loader_lookuptable.get(loader_name)
@@ -77,7 +79,8 @@ def loader_factory(args):
         'CMU_120K'      : cmu_mainloader.train_factory,
         'OpenPifPaf'    : pifpaf_mainloader.train_factory,
         'CMU_117K'      : cmu_h5_mainloader.train_factory,
-        'PifPaf_mask'   : pifpaf_mask_mainloader.train_factory
+        'PifPaf_mask'   : pifpaf_mask_mainloader.train_factory,
+        'CMU_117K_offset'   : cmu_h5_mainloader_offset.train_factory
     }
     try:
         loader_ = loader_LUT_factory.get(loader_name)

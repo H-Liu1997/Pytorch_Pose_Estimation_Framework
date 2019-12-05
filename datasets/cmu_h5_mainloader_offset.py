@@ -12,9 +12,9 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader,Dataset
 
-from .py_rmpe_server.py_rmpe_config import RmpeGlobalConfig, RmpeCocoConfig
+from .py_rmpe_server.py_rmpe_config_offset import RmpeGlobalConfig, RmpeCocoConfig
 from .py_rmpe_server.py_rmpe_transformer import Transformer, AugmentSelection
-from .py_rmpe_server.py_rmpe_heatmapper import Heatmapper
+from .py_rmpe_server.py_rmpe_heatmapper_offset import Heatmapper
 
 def loader_cli(parser):
     ''' some parameters of dataloader
@@ -23,7 +23,7 @@ def loader_cli(parser):
         3. training img number
         4. some augment setting
     '''
-    print('using CMU offical 117K/2K data success') 
+    print('using CMU offical 117K/2K offset data success') 
     group = parser.add_argument_group('dataset and loader')
     group.add_argument('--h5_train_path',   default='./dataset/train_dataset_2014.h5')
     group.add_argument('--h5_val_path',     default='./dataset/val_dataset_2014.h5')
@@ -176,7 +176,7 @@ def train_factory(type_,args):
         data_ = h5loader(args.h5_train_path,args)
         print('init data success')         
         train_loader = DataLoader(data_, shuffle=True, batch_size=args.batch_size,
-                                 num_workers=32,
+                                 num_workers=24,
                                  pin_memory=True, drop_last=True)
         print('train dataset len:{}'.format(len(train_loader.dataset)))
         return train_loader
@@ -184,7 +184,7 @@ def train_factory(type_,args):
         data_ = h5loader(args.h5_val_path,args)
         print('init data success')
         val_loader = DataLoader(data_, shuffle=False, batch_size=args.batch_size,
-                                 num_workers=32, 
+                                 num_workers=24, 
                                  pin_memory=True, drop_last=False)
         print('val dataset len:{}'.format(len(val_loader.dataset)))
         return val_loader

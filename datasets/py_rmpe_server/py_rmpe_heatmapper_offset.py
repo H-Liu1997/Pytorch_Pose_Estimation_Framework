@@ -3,7 +3,7 @@
 import numpy as np
 from math import sqrt, isnan
 
-from .py_rmpe_config import RmpeGlobalConfig, TransformationParams
+from .py_rmpe_config_offset import RmpeGlobalConfig, TransformationParams
 
 class Heatmapper:
 
