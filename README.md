@@ -76,17 +76,19 @@ Please cite the paper in your publications if it helps your research:
       title = {Realtime Multi-Person 2D Pose Estimation using Part Affinity Fields},
       year = {2017}
       }
-    
-    @inproceedings{wei2016cpm,
-      author = {Shih-En Wei and Varun Ramakrishna and Takeo Kanade and Yaser Sheikh},
-      booktitle = {CVPR},
-      title = {Convolutional pose machines},
-      year = {2016}
+      
+    @inproceedings{liu2020resolution,
+        title={Resolution Irrelevant Encoding and Difficulty Balanced Loss Based Network Independent Supervision for Multi-Person Pose Estimation},
+        author={Liu, Haiyang and Luo, Dingli and Du, Songlin and Ikenaga, Takeshi},
+        booktitle={2020 13th International Conference on Human System Interaction (HSI)},
+        pages={112--117},
+        year={2020},
+        organization={IEEE}
       }
+      
 
 
 
-## License
-Please only using in our lab
+
 
 
