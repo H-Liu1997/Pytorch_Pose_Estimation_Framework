@@ -1,9 +1,9 @@
 # Pytorch Pose Estimation Framework
 
-A pytorch pose estimation framework using by myself.<br>
-It contains a pytorch framework which is suitable for cv problems.<br>
-The main partion of it focus on OpenPose reproduction.<br>
-
+A pytorch pose estimation framework using by myself for research.<br>
+It contains a pytorch framework which is suitable for pose estimation.<br>
+The main partion of it focus on OpenPose reproduction, with simliar mAP in their paper.<br>
+You can also found code for my HSI paper in train_offset and train_mask.<br>
 
 
 ## Content
